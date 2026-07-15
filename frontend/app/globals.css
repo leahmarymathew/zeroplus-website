@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+/*
+  Design tokens lifted 1:1 from the Claude Design project's
+  "Zeroplus Design System" screen. Every component should reference
+  these tokens (bg-rose, text-muted, border-border-pink, ...) rather
+  than raw hex values.
+*/
+@theme {
+  --font-heading: var(--font-poppins), sans-serif;
+  --font-body: var(--font-nunito), sans-serif;
+
+  /* Core palette */
+  --color-rose: #d94f8c;
+  --color-rose-dark: #b83a72;
+  --color-surface-pink-light: #fdeaf3;
+  --color-surface-pink: #fce4f0;
+  --color-input-fill: #faf3f8;
+  --color-page: #fffdfc;
+  --color-ink: #3a2e3f;
+  --color-muted: #6b5d70;
+  --color-muted-light: #8a7a90;
+  --color-placeholder-icon: #b98cae;
+  --color-border-pink: #eeb9d3;
+  --color-border-pink-light: #f5e3ee;
+  --color-border-secondary: #f3c8db;
+  --color-info: #1b9ac7;
+  --color-whatsapp: #25d366;
+
+  /* Disabled state */
+  --color-disabled-bg: #e2dbe4;
+  --color-disabled-text: #a99cad;
+  --color-strikethrough: #b6a9bb;
+
+  /* Status semantics (stock / order status / dashboard deltas) */
+  --color-success-bg: #eafaf1;
+  --color-success-text: #1c9a5b;
+  --color-success-text-dark: #166b41;
+  --color-warning-bg: #fdf3e0;
+  --color-warning-text: #a8710f;
+  --color-info-bg: #e6f2fb;
+  --color-info-text: #1b6aa3;
+  --color-info-text-dark: #124d78;
+  --color-purple-bg: #f0e9fb;
+  --color-purple-text: #6a3fb0;
+  --color-danger-bg: #fbe6e6;
+  --color-danger-text: #c23b3b;
+
+  /* Admin shell */
+  --color-admin-bg: #f7f5f6;
+  --color-admin-border: #ece3e8;
+  --color-admin-row-border: #f4eef1;
+}
+
+body {
+  margin: 0;
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
+}
+
+a {
+  color: var(--color-rose);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--color-rose-dark);
+}
+
+::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-pink);
+  border-radius: 4px;
+}
