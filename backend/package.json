@@ -4,11 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run",
+    "test": "NODE_ENV=test DATABASE_URL=postgresql://postgres:zeroplus@localhost:5433/zeroplus_test vitest run",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "test:watch": "NODE_ENV=test DATABASE_URL=postgresql://postgres:zeroplus@localhost:5433/zeroplus_test vitest",
+    "generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "seed:admin": "SEED_SCOPE=admin tsx prisma/seed.ts"
   },
   "keywords": [],
   "author": "",
