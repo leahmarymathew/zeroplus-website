@@ -5,6 +5,7 @@ import { randomBytes as randomBytesId } from "node:crypto";
 import { priceOrder } from "./pricing.js";
 import { sendOrderConfirmation } from "../lib/mailer.js";
 import { assertCheckoutOtp, consumeOtp } from "./otp.service.js";
+import { validateKitSelection } from "./kit.service.js";
 import { initiatePayment } from "../lib/phonepe.js";
 import { config } from "../config.js";
 import type { PaymentMethod } from "../generated/prisma/enums.js";
@@ -47,10 +48,6 @@ export async function createOrder(params: CreateOrderParams, cartKey?: CartKey) 
   if (params.items.length === 0) {
     throw new ApiError(400, "EMPTY_CART", "Cannot place an order with no items");
   }
-  // Kit lines are validated + priced in the kits phase (P16).
-  if (params.items.some((i) => i.kitId)) {
-    throw new ApiError(501, "NOT_IMPLEMENTED", "Kit orders are not enabled yet");
-  }
 
   // COD requires a verified phone (plan 6.4). Check validity before touching
   // stock; the OTP is consumed only after the order commits (below), so a
@@ -59,29 +56,64 @@ export async function createOrder(params: CreateOrderParams, cartKey?: CartKey) 
     await assertCheckoutOtp(params.addressSnapshot.phone, params.otpId);
   }
 
-  // Re-derive every line from the DB — never trust client-sent prices/names.
-  const variantIds = params.items.map((i) => i.variantId!).filter(Boolean);
+  // Re-derive every line from the DB — never trust client prices/names/kit
+  // configs. Variant lines and kit lines both flow into: order-item rows to
+  // create, price lines for the subtotal, and stock deductions aggregated per
+  // variant (a variant may appear in several lines and/or inside a kit).
+  const variantIds = params.items.filter((i) => i.variantId).map((i) => i.variantId!);
   const variants = await prisma.productVariant.findMany({
     where: { id: { in: variantIds } },
     include: { product: true },
   });
-  const byId = new Map(variants.map((v) => [v.id, v]));
+  const variantById = new Map(variants.map((v) => [v.id, v]));
 
-  const lines = params.items.map((item) => {
-    const variant = byId.get(item.variantId!);
-    if (!variant || !variant.product.isActive) {
-      throw notFound(`Product variant ${item.variantId}`);
+  const orderItemRows: {
+    variantId?: string;
+    kitId?: string;
+    kitName?: string;
+    kitSelectionsSnapshot?: object;
+    productName?: string;
+    variantLabel?: string;
+    quantity: number;
+    priceAtPurchase: number;
+  }[] = [];
+  const priceLines: { quantity: number; unitPrice: number }[] = [];
+  const deductions = new Map<string, number>();
+  const deductionNames = new Map<string, string>();
+  const addDeduction = (variantId: string, qty: number, name: string) => {
+    deductions.set(variantId, (deductions.get(variantId) ?? 0) + qty);
+    deductionNames.set(variantId, name);
+  };
+
+  for (const item of params.items) {
+    if (item.variantId) {
+      const variant = variantById.get(item.variantId);
+      if (!variant || !variant.product.isActive) throw notFound(`Product variant ${item.variantId}`);
+      orderItemRows.push({
+        variantId: variant.id,
+        productName: variant.product.name,
+        variantLabel: variant.label,
+        quantity: item.quantity,
+        priceAtPurchase: variant.price,
+      });
+      priceLines.push({ quantity: item.quantity, unitPrice: variant.price });
+      addDeduction(variant.id, item.quantity, variant.product.name);
+    } else if (item.kitId) {
+      // Server-side kit integrity check + pricing (plan 6.1).
+      const kit = await validateKitSelection(item.kitId, item.kitSelections);
+      orderItemRows.push({
+        kitId: kit.kitId,
+        kitName: kit.name,
+        kitSelectionsSnapshot: kit.snapshot,
+        quantity: item.quantity,
+        priceAtPurchase: kit.unitPrice,
+      });
+      priceLines.push({ quantity: item.quantity, unitPrice: kit.unitPrice });
+      for (const c of kit.components) addDeduction(c.variantId, item.quantity, c.snapshotText);
     }
-    return {
-      variantId: variant.id,
-      quantity: item.quantity,
-      unitPrice: variant.price,
-      productName: variant.product.name,
-      variantLabel: variant.label,
-    };
-  });
+  }
 
-  const totals = priceOrder(lines, params.paymentMethod);
+  const totals = priceOrder(priceLines, params.paymentMethod);
   const isGuest = !params.userId;
   const guestAccessToken = isGuest ? randomBytes(24).toString("base64url") : null;
 
@@ -91,13 +123,13 @@ export async function createOrder(params: CreateOrderParams, cartKey?: CartKey) 
   // the order + items are created. Any failure rolls the entire thing back, so
   // stock is never lost to a half-created order (plan Section 4).
   const order = await prisma.$transaction(async (tx) => {
-    for (const line of lines) {
+    for (const [variantId, qty] of deductions) {
       const dec = await tx.productVariant.updateMany({
-        where: { id: line.variantId, stockQty: { gte: line.quantity } },
-        data: { stockQty: { decrement: line.quantity } },
+        where: { id: variantId, stockQty: { gte: qty } },
+        data: { stockQty: { decrement: qty } },
       });
       if (dec.count === 0) {
-        throw new ApiError(409, "OUT_OF_STOCK", `${line.productName} is out of stock`);
+        throw new ApiError(409, "OUT_OF_STOCK", `${deductionNames.get(variantId) ?? "An item"} is out of stock`);
       }
     }
 
@@ -124,15 +156,7 @@ export async function createOrder(params: CreateOrderParams, cartKey?: CartKey) 
         contactEmail: params.contactEmail ?? null,
         contactName: params.contactName ?? null,
         guestAccessToken,
-        items: {
-          create: lines.map((l) => ({
-            variantId: l.variantId,
-            productName: l.productName, // snapshot — survives later catalog edits
-            variantLabel: l.variantLabel,
-            quantity: l.quantity,
-            priceAtPurchase: l.unitPrice,
-          })),
-        },
+        items: { create: orderItemRows }, // snapshots — survive later catalog edits
       },
       include: orderInclude,
     });

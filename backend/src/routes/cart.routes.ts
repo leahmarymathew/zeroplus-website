@@ -32,13 +32,14 @@ const addSchema = z
     message: "Provide exactly one of variantId or kitId",
   });
 
-// POST /v1/cart/items — Section 6.3. Kit lines land in the kits phase (P16).
+// POST /v1/cart/items — Section 6.3. Either a variant line or a configured kit.
 cartRouter.post("/items", validate(addSchema), async (req, res) => {
   const key = keyFor(req, res);
   if (req.body.kitId) {
-    throw new ApiError(501, "NOT_IMPLEMENTED", "Kit cart lines are not enabled yet");
+    ok(res, await cart.addKit(key, req.body.kitId, req.body.kitSelections ?? {}, req.body.quantity), undefined, 201);
+  } else {
+    ok(res, await cart.addVariant(key, req.body.variantId, req.body.quantity), undefined, 201);
   }
-  ok(res, await cart.addVariant(key, req.body.variantId, req.body.quantity), undefined, 201);
 });
 
 const qtySchema = z.object({ quantity: z.number().int().min(1).max(99) });

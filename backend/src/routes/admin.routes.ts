@@ -4,6 +4,7 @@ import { validate } from "../middleware/validate.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { ok, paginate } from "../lib/respond.js";
 import * as admin from "../services/admin.service.js";
+import * as kits from "../services/kit.service.js";
 
 export const adminRouter = Router();
 
@@ -70,6 +71,50 @@ adminRouter.post("/categories", validate(categorySchema), async (req, res) => {
 });
 adminRouter.patch("/categories/:id", validate(categorySchema.partial()), async (req, res) => {
   ok(res, await admin.updateCategory(String(req.params.id), req.body));
+});
+
+// ---------- Kits ----------
+
+const kitSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().min(1),
+  basePrice: z.number().int().min(0),
+  imageUrl: z.string().url().nullable().optional(),
+  isActive: z.boolean().optional(),
+  slots: z
+    .array(
+      z.object({
+        label: z.string().min(1),
+        options: z
+          .array(
+            z.object({
+              productVariantId: z.string().min(1),
+              priceAdjustment: z.number().int().nullable().optional(),
+            }),
+          )
+          .min(1),
+      }),
+    )
+    .min(1),
+});
+
+adminRouter.get("/kits", async (_req, res) => {
+  ok(res, await kits.listAdminKits());
+});
+adminRouter.get("/kits/:id", async (req, res) => {
+  ok(res, await kits.getAdminKitById(String(req.params.id)));
+});
+adminRouter.post("/kits", validate(kitSchema), async (req, res) => {
+  ok(res, await kits.createKit(req.body), undefined, 201);
+});
+adminRouter.patch("/kits/:id", validate(kitSchema), async (req, res) => {
+  ok(res, await kits.updateKit(String(req.params.id), req.body));
+});
+adminRouter.patch("/kits/:id/active", validate(z.object({ isActive: z.boolean() })), async (req, res) => {
+  ok(res, await kits.setKitActive(String(req.params.id), req.body.isActive));
+});
+adminRouter.delete("/kits/:id", async (req, res) => {
+  ok(res, await kits.deleteKit(String(req.params.id)));
 });
 
 // ---------- Orders ----------

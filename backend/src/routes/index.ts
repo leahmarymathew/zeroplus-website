@@ -9,6 +9,7 @@ import { otpRouter } from "./otp.routes.js";
 import { paymentsRouter } from "./payment.routes.js";
 import { uploadsRouter } from "./upload.routes.js";
 import { adminRouter } from "./admin.routes.js";
+import { kitsRouter } from "./kit.routes.js";
 
 // Every resource router mounts here; app.ts mounts this under /v1.
 export const v1 = Router();
@@ -28,3 +29,4 @@ v1.use("/uploads", uploadsRouter);
 v1.use("/admin", adminRouter);
 v1.use("/products", productsRouter);
 v1.use("/categories", categoriesRouter);
+v1.use("/kits", kitsRouter);

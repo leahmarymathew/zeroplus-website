@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 import { ApiError, notFound } from "../lib/errors.js";
+import { validateKitSelection } from "./kit.service.js";
 import type { Prisma } from "../generated/prisma/client.js";
 
 // Where-fragment identifying "this cart": the authenticated user's, or the
@@ -18,9 +19,11 @@ const lineInclude = {
 type CartRow = Prisma.CartItemGetPayload<{ include: typeof lineInclude }>;
 
 // Shape one DB row into the frontend CartItem (denormalized display fields).
-function toDisplay(row: CartRow) {
-  const unitPrice = row.variant?.price ?? row.kit?.basePrice ?? 0;
-  return {
+// Kit lines are re-priced from their stored selections every read, so a later
+// price change is reflected; if the kit has since become invalid, fall back to
+// its base price rather than crashing the whole cart.
+async function toDisplay(row: CartRow) {
+  const base = {
     id: row.id,
     sessionId: row.sessionId,
     userId: row.userId,
@@ -28,10 +31,23 @@ function toDisplay(row: CartRow) {
     kitId: row.kitId,
     kitSelections: row.kitSelections as Record<string, string> | null,
     quantity: row.quantity,
-    name: row.variant?.product.name ?? row.kit?.name ?? "Item",
+  };
+
+  if (row.kitId) {
+    try {
+      const v = await validateKitSelection(row.kitId, (row.kitSelections as Record<string, string>) ?? {});
+      return { ...base, name: v.name, variantLabel: null, unitPrice: v.unitPrice, imageUrl: v.imageUrl };
+    } catch {
+      return { ...base, name: row.kit?.name ?? "Kit", variantLabel: null, unitPrice: row.kit?.basePrice ?? 0, imageUrl: row.kit?.imageUrl ?? null };
+    }
+  }
+
+  return {
+    ...base,
+    name: row.variant?.product.name ?? "Item",
     variantLabel: row.variant?.label ?? null,
-    unitPrice,
-    imageUrl: row.variant?.product.images[0]?.url ?? row.kit?.imageUrl ?? null,
+    unitPrice: row.variant?.price ?? 0,
+    imageUrl: row.variant?.product.images[0]?.url ?? null,
   };
 }
 
@@ -41,7 +57,7 @@ async function buildCart(key: CartKey) {
     include: lineInclude,
     orderBy: { id: "asc" },
   });
-  const items = rows.map(toDisplay);
+  const items = await Promise.all(rows.map(toDisplay));
   const total = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
   return { items, total };
 }
@@ -71,6 +87,21 @@ export async function addVariant(key: CartKey, variantId: string, quantity: numb
   } else {
     await prisma.cartItem.create({ data: { ...key, variantId, quantity: finalQty } });
   }
+  return buildCart(key);
+}
+
+// Kit lines are validated (plan 6.1) before storing — the selection map is
+// verified against the kit's real options, never trusted as sent. Each kit
+// configuration is its own line (unlike variant lines, we don't merge, since
+// two kits of the same id can have different selections).
+export async function addKit(
+  key: CartKey,
+  kitId: string,
+  kitSelections: Record<string, string>,
+  quantity: number,
+) {
+  await validateKitSelection(kitId, kitSelections); // throws on any invalid selection
+  await prisma.cartItem.create({ data: { ...key, kitId, kitSelections, quantity } });
   return buildCart(key);
 }
 
