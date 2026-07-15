@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "../lib/prisma.js";
@@ -114,8 +115,12 @@ export async function forgotPassword(phone: string) {
     const { sendOtp } = await import("./otp.service.js");
     return sendOtp(phone, "PASSWORD_RESET");
   }
-  // Fake a plausible response for unknown numbers.
-  return { otpId: "otp_none", expiresInSeconds: config.otp.ttlSeconds };
+  // Unknown number: return a response indistinguishable from the real one. A
+  // cuid-shaped random id (not a constant like "otp_none") so the otpId can't
+  // be used to tell registered from unregistered phones. Verifying it later
+  // simply fails as "not found", same as a mistyped code.
+  const fakeOtpId = "c" + randomBytes(12).toString("hex");
+  return { otpId: fakeOtpId, expiresInSeconds: config.otp.ttlSeconds };
 }
 
 export async function resetPassword(input: { otpId: string; code: string; newPassword: string }) {

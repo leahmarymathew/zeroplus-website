@@ -36,8 +36,10 @@ export async function verifyOtp(otpId: string, code: string) {
   const otp = await prisma.otpRequest.findUnique({ where: { id: otpId } });
   if (!otp) throw new ApiError(400, "OTP_NOT_FOUND", "Invalid or expired code");
   if (otp.consumed) throw new ApiError(400, "OTP_CONSUMED", "This code has already been used");
-  if (otp.verified) return otp; // idempotent re-verify
+  // Expiry must be checked before the already-verified short-circuit, otherwise
+  // a verified-but-expired code would still pass (e.g. for password reset).
   if (otp.expiresAt < new Date()) throw new ApiError(400, "OTP_EXPIRED", "This code has expired");
+  if (otp.verified) return otp; // idempotent re-verify
   if (otp.attempts >= config.otp.maxAttempts) {
     throw new ApiError(429, "OTP_LOCKED", "Too many attempts, request a new code");
   }

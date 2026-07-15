@@ -17,6 +17,7 @@ Run the backend (`cd backend && npm run dev`) alongside `npm run dev` in `fronte
 Create `frontend/lib/api/client.ts`:
 ```ts
 import axios from "axios";
+import { useAuthStore } from "@/store/authStore"; // add an `accessToken` field to this store
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,

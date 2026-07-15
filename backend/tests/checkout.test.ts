@@ -87,6 +87,24 @@ describe("checkout", () => {
     expect(consumed!.consumed).toBe(true);
   });
 
+  it("does not let a verified OTP authorize a second COD order (single-use)", async () => {
+    const { variant } = await seedProduct(5, 100);
+    const otp = await prisma.otpRequest.create({
+      data: { phone: address.phone, codeHash: "x", purpose: "CHECKOUT", verified: true, expiresAt: new Date(Date.now() + 60_000) },
+    });
+    const body = { items: [{ variantId: variant.id, quantity: 1 }], addressSnapshot: address, paymentMethod: "COD", otpId: otp.id };
+    const first = await request(app).post("/v1/orders").send(body);
+    const second = await request(app).post("/v1/orders").send(body);
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(400);
+    // Sequential reuse is caught by the pre-check (already consumed); the
+    // concurrent race is caught by the in-transaction guard. Either rejects.
+    expect(["OTP_NOT_VERIFIED", "OTP_ALREADY_USED"]).toContain(second.body.error.code);
+    // Stock was deducted exactly once.
+    const after = await prisma.productVariant.findUnique({ where: { id: variant.id } });
+    expect(after!.stockQty).toBe(4);
+  });
+
   it("gives sequential order numbers", async () => {
     const { variant } = await seedProduct(10, 100);
     const a = await placePhonepeOrder(variant.id, 1);

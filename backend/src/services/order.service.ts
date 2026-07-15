@@ -3,7 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { ApiError, notFound, forbidden } from "../lib/errors.js";
 import { priceOrder } from "./pricing.js";
 import { sendOrderConfirmation } from "../lib/mailer.js";
-import { assertCheckoutOtp, consumeOtp } from "./otp.service.js";
+import { assertCheckoutOtp } from "./otp.service.js";
 import { validateKitSelection } from "./kit.service.js";
 import { initiatePayment } from "../lib/phonepe.js";
 import { config } from "../config.js";
@@ -160,16 +160,25 @@ export async function createOrder(params: CreateOrderParams, cartKey?: CartKey) 
       include: orderInclude,
     });
 
+    // Burn the COD OTP inside the same transaction so it's atomic with the
+    // order: the conditional (consumed:false) guard means two concurrent
+    // orders can't both spend one OTP, and a rolled-back order never consumes
+    // it. count === 0 means it was already used — fail the whole checkout.
+    if (params.paymentMethod === "COD" && params.otpId) {
+      const burned = await tx.otpRequest.updateMany({
+        where: { id: params.otpId, consumed: false },
+        data: { consumed: true },
+      });
+      if (burned.count === 0) {
+        throw new ApiError(400, "OTP_ALREADY_USED", "This phone verification has already been used");
+      }
+    }
+
     if (cartKey) {
       await tx.cartItem.deleteMany({ where: cartKey });
     }
     return created;
   });
-
-  // Order committed — now burn the COD OTP so it can't authorize another order.
-  if (params.paymentMethod === "COD" && params.otpId) {
-    await consumeOtp(params.otpId).catch(() => {});
-  }
 
   // Email after the commit — a mail failure must never roll back a real order.
   const to = params.userId
@@ -189,7 +198,7 @@ export async function createOrder(params: CreateOrderParams, cartKey?: CartKey) 
   // update arrives later via the webhook (see payment.service).
   let phonepeRedirectUrl: string | undefined;
   if (params.paymentMethod === "PHONEPE") {
-    const merchantTransactionId = `MT${randomBytesId(12).toString("hex")}`;
+    const merchantTransactionId = `MT${randomBytes(12).toString("hex")}`;
     await prisma.payment.create({
       data: { orderId: order.id, phonepeMerchantTransactionId: merchantTransactionId, amount: order.total },
     });
