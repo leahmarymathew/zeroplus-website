@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { validate } from "../middleware/validate.js";
+import { requireAuth } from "../middleware/auth.js";
 import { ok, paginate } from "../lib/respond.js";
 import * as catalog from "../services/catalog.service.js";
 
@@ -43,6 +44,17 @@ productsRouter.get("/:id/reviews", validate(reviewsQuery, "query"), async (req, 
   const { page, limit } = res.locals.query as z.infer<typeof reviewsQuery>;
   const { items, total } = await catalog.listReviews(String(req.params.id), page, limit);
   ok(res, items, paginate(page, limit, total));
+});
+
+const submitReviewSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().max(2000).nullable().optional(),
+});
+
+// POST /v1/products/:id/reviews — customer with a delivered order only
+productsRouter.post("/:id/reviews", requireAuth, validate(submitReviewSchema), async (req, res) => {
+  const review = await catalog.submitReview(String(req.params.id), req.user!.id, req.body);
+  ok(res, review, undefined, 201);
 });
 
 // GET /v1/categories

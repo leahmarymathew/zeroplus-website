@@ -1,5 +1,5 @@
 import { prisma } from "../lib/prisma.js";
-import { notFound } from "../lib/errors.js";
+import { ApiError, notFound } from "../lib/errors.js";
 import type { Prisma } from "../generated/prisma/client.js";
 
 export type ProductSort = "popular" | "price_asc" | "price_desc" | "newest";
@@ -133,4 +133,45 @@ export async function listReviews(productId: string, page: number, limit: number
   ]);
   const items = rows.map(({ user, ...r }) => ({ ...r, userName: user.name }));
   return { items, total };
+}
+
+// Submit a review. Allowed only if the user has a DELIVERED order containing a
+// variant of this product (plan 2.1) — reviews aren't open to anyone browsing.
+export async function submitReview(
+  productId: string,
+  userId: string,
+  input: { rating: number; comment?: string | null },
+) {
+  const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
+  if (!product) throw notFound("Product");
+
+  const variantIds = (
+    await prisma.productVariant.findMany({ where: { productId }, select: { id: true } })
+  ).map((v) => v.id);
+
+  const delivered = await prisma.order.findFirst({
+    where: {
+      userId,
+      status: "DELIVERED",
+      items: { some: { variantId: { in: variantIds } } },
+    },
+    select: { id: true },
+  });
+  if (!delivered) {
+    throw new ApiError(403, "NOT_ELIGIBLE", "You can only review products from a delivered order");
+  }
+
+  try {
+    const review = await prisma.review.create({
+      data: { productId, userId, rating: input.rating, comment: input.comment ?? null },
+      include: { user: { select: { name: true } } },
+    });
+    const { user, ...r } = review;
+    return { ...r, userName: user.name };
+  } catch (e) {
+    if ((e as { code?: string }).code === "P2002") {
+      throw new ApiError(409, "ALREADY_REVIEWED", "You have already reviewed this product");
+    }
+    throw e;
+  }
 }

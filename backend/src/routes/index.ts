@@ -8,6 +8,7 @@ import { ordersRouter } from "./order.routes.js";
 import { otpRouter } from "./otp.routes.js";
 import { paymentsRouter } from "./payment.routes.js";
 import { uploadsRouter } from "./upload.routes.js";
+import { adminRouter } from "./admin.routes.js";
 
 // Every resource router mounts here; app.ts mounts this under /v1.
 export const v1 = Router();
@@ -24,5 +25,6 @@ v1.use("/orders", ordersRouter);
 v1.use("/otp", otpRouter);
 v1.use("/payments", paymentsRouter);
 v1.use("/uploads", uploadsRouter);
+v1.use("/admin", adminRouter);
 v1.use("/products", productsRouter);
 v1.use("/categories", categoriesRouter);
