@@ -1,7 +1,6 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomBytes as randomBytesId } from "node:crypto";
 import { prisma } from "../lib/prisma.js";
 import { ApiError, notFound, forbidden } from "../lib/errors.js";
-import { randomBytes as randomBytesId } from "node:crypto";
 import { priceOrder } from "./pricing.js";
 import { sendOrderConfirmation } from "../lib/mailer.js";
 import { assertCheckoutOtp, consumeOtp } from "./otp.service.js";
