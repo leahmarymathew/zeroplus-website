@@ -1,9 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "../lib/prisma.js";
 import { ApiError, notFound, forbidden } from "../lib/errors.js";
+import { randomBytes as randomBytesId } from "node:crypto";
 import { priceOrder } from "./pricing.js";
 import { sendOrderConfirmation } from "../lib/mailer.js";
 import { assertCheckoutOtp, consumeOtp } from "./otp.service.js";
+import { initiatePayment } from "../lib/phonepe.js";
 import { config } from "../config.js";
 import type { PaymentMethod } from "../generated/prisma/enums.js";
 import type { CartKey } from "./cart.service.js";
@@ -108,7 +110,8 @@ export async function createOrder(params: CreateOrderParams, cartKey?: CartKey) 
     const created = await tx.order.create({
       data: {
         orderNumber: genOrderNumber(counter.value),
-        userId: params.userId ?? null,
+        // Connect the user relation only for logged-in orders; guests leave it null.
+        ...(params.userId ? { user: { connect: { id: params.userId } } } : {}),
         status: "PLACED",
         paymentStatus: "PENDING",
         paymentMethod: params.paymentMethod,
@@ -118,6 +121,8 @@ export async function createOrder(params: CreateOrderParams, cartKey?: CartKey) 
         codFee: totals.codFee,
         total: totals.total,
         addressSnapshot: params.addressSnapshot as object,
+        contactEmail: params.contactEmail ?? null,
+        contactName: params.contactName ?? null,
         guestAccessToken,
         items: {
           create: lines.map((l) => ({
@@ -156,7 +161,26 @@ export async function createOrder(params: CreateOrderParams, cartKey?: CartKey) 
     );
   }
 
-  return order;
+  // Prepaid: create the Payment attempt row and get PhonePe's hosted-page URL.
+  // The frontend redirects the browser there; the authoritative PAID/FAILED
+  // update arrives later via the webhook (see payment.service).
+  let phonepeRedirectUrl: string | undefined;
+  if (params.paymentMethod === "PHONEPE") {
+    const merchantTransactionId = `MT${randomBytesId(12).toString("hex")}`;
+    await prisma.payment.create({
+      data: { orderId: order.id, phonepeMerchantTransactionId: merchantTransactionId, amount: order.total },
+    });
+    const init = await initiatePayment({
+      merchantTransactionId,
+      amountRupees: order.total,
+      orderId: order.id,
+      guestToken: guestAccessToken,
+      mobileNumber: params.addressSnapshot.phone,
+    });
+    phonepeRedirectUrl = init.redirectUrl;
+  }
+
+  return { ...order, phonepeRedirectUrl };
 }
 
 // GET /v1/orders/:id — JWT owner OR matching guest token (plan 6.1).

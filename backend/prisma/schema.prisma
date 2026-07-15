@@ -202,6 +202,8 @@ model Order {
   codFee           Int?
   total            Int
   addressSnapshot  Json // frozen at order time — later address edits never rewrite history
+  contactEmail     String? // guest orders: confirmation/tracking email (no account email)
+  contactName      String? // guest orders: name for the order (addressSnapshot has none)
   guestAccessToken String?       @unique // set only for guest orders; emailed tracking link
   trackingNumber   String?
   createdAt        DateTime      @default(now())

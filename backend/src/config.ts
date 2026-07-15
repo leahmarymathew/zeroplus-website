@@ -31,6 +31,9 @@ const Env = z.object({
 
   PORT: z.coerce.number().default(4000),
   FRONTEND_URL: z.string().default("http://localhost:3000"),
+  // Public URL of THIS backend — PhonePe's server-to-server webhook posts here.
+  // Locally this is a tunnel URL (e.g. cloudflared) so PhonePe can reach it.
+  BACKEND_PUBLIC_URL: z.string().default("http://localhost:4000"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 
@@ -91,6 +94,7 @@ export const config = {
   },
   port: env.PORT,
   frontendUrl: env.FRONTEND_URL,
+  backendPublicUrl: env.BACKEND_PUBLIC_URL,
   isProd: env.NODE_ENV === "production",
   isTest: env.NODE_ENV === "test",
 } as const;
