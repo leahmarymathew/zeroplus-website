@@ -1,0 +1,187 @@
+import { randomBytes } from "node:crypto";
+import { prisma } from "../lib/prisma.js";
+import { ApiError, notFound, forbidden } from "../lib/errors.js";
+import { priceOrder } from "./pricing.js";
+import { sendOrderConfirmation } from "../lib/mailer.js";
+import { config } from "../config.js";
+import type { PaymentMethod } from "../generated/prisma/enums.js";
+import type { CartKey } from "./cart.service.js";
+
+export interface OrderLineInput {
+  variantId?: string;
+  kitId?: string;
+  kitSelections?: Record<string, string>;
+  quantity: number;
+}
+
+export interface AddressSnapshot {
+  label?: string | null;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+  phone: string;
+}
+
+export interface CreateOrderParams {
+  userId?: string;
+  items: OrderLineInput[];
+  addressSnapshot: AddressSnapshot;
+  paymentMethod: PaymentMethod;
+  contactEmail?: string; // guest confirmation/tracking email (plan 6.1)
+  contactName?: string;
+}
+
+const orderInclude = { items: true } as const;
+
+function genOrderNumber(value: number) {
+  return `ZP-${String(value).padStart(5, "0")}`;
+}
+
+export async function createOrder(params: CreateOrderParams, cartKey?: CartKey) {
+  if (params.items.length === 0) {
+    throw new ApiError(400, "EMPTY_CART", "Cannot place an order with no items");
+  }
+  // Kit lines are validated + priced in the kits phase (P16).
+  if (params.items.some((i) => i.kitId)) {
+    throw new ApiError(501, "NOT_IMPLEMENTED", "Kit orders are not enabled yet");
+  }
+
+  // Re-derive every line from the DB — never trust client-sent prices/names.
+  const variantIds = params.items.map((i) => i.variantId!).filter(Boolean);
+  const variants = await prisma.productVariant.findMany({
+    where: { id: { in: variantIds } },
+    include: { product: true },
+  });
+  const byId = new Map(variants.map((v) => [v.id, v]));
+
+  const lines = params.items.map((item) => {
+    const variant = byId.get(item.variantId!);
+    if (!variant || !variant.product.isActive) {
+      throw notFound(`Product variant ${item.variantId}`);
+    }
+    return {
+      variantId: variant.id,
+      quantity: item.quantity,
+      unitPrice: variant.price,
+      productName: variant.product.name,
+      variantLabel: variant.label,
+    };
+  });
+
+  const totals = priceOrder(lines, params.paymentMethod);
+  const isGuest = !params.userId;
+  const guestAccessToken = isGuest ? randomBytes(24).toString("base64url") : null;
+
+  // The whole thing is one transaction: stock is conditionally decremented per
+  // line (updateMany with `gte` is race-safe — two concurrent last-item orders
+  // cannot both succeed), the order number is drawn from an atomic counter, and
+  // the order + items are created. Any failure rolls the entire thing back, so
+  // stock is never lost to a half-created order (plan Section 4).
+  const order = await prisma.$transaction(async (tx) => {
+    for (const line of lines) {
+      const dec = await tx.productVariant.updateMany({
+        where: { id: line.variantId, stockQty: { gte: line.quantity } },
+        data: { stockQty: { decrement: line.quantity } },
+      });
+      if (dec.count === 0) {
+        throw new ApiError(409, "OUT_OF_STOCK", `${line.productName} is out of stock`);
+      }
+    }
+
+    const counter = await tx.orderCounter.upsert({
+      where: { id: 1 },
+      create: { id: 1, value: 1 },
+      update: { value: { increment: 1 } },
+    });
+
+    const created = await tx.order.create({
+      data: {
+        orderNumber: genOrderNumber(counter.value),
+        userId: params.userId ?? null,
+        status: "PLACED",
+        paymentStatus: "PENDING",
+        paymentMethod: params.paymentMethod,
+        subtotal: totals.subtotal,
+        discount: totals.discount,
+        shippingFee: totals.shippingFee,
+        codFee: totals.codFee,
+        total: totals.total,
+        addressSnapshot: params.addressSnapshot as object,
+        guestAccessToken,
+        items: {
+          create: lines.map((l) => ({
+            variantId: l.variantId,
+            productName: l.productName, // snapshot — survives later catalog edits
+            variantLabel: l.variantLabel,
+            quantity: l.quantity,
+            priceAtPurchase: l.unitPrice,
+          })),
+        },
+      },
+      include: orderInclude,
+    });
+
+    if (cartKey) {
+      await tx.cartItem.deleteMany({ where: cartKey });
+    }
+    return created;
+  });
+
+  // Email after the commit — a mail failure must never roll back a real order.
+  const to = params.userId
+    ? (await prisma.user.findUnique({ where: { id: params.userId } }))?.email
+    : params.contactEmail;
+  if (to) {
+    const trackingUrl = guestAccessToken
+      ? `${config.frontendUrl}/order-confirmation/${order.id}?token=${guestAccessToken}`
+      : undefined;
+    sendOrderConfirmation(order, to, trackingUrl).catch((e) =>
+      console.error(`order ${order.orderNumber}: confirmation email failed`, e),
+    );
+  }
+
+  return order;
+}
+
+// GET /v1/orders/:id — JWT owner OR matching guest token (plan 6.1).
+export async function getOrderById(id: string, auth: { userId?: string; token?: string }) {
+  const order = await prisma.order.findUnique({ where: { id }, include: orderInclude });
+  if (!order) throw notFound("Order");
+
+  const ownedByUser = order.userId && order.userId === auth.userId;
+  const matchesToken = order.guestAccessToken && order.guestAccessToken === auth.token;
+  if (!ownedByUser && !matchesToken) {
+    throw forbidden("You do not have access to this order");
+  }
+  return order;
+}
+
+export async function listUserOrders(userId: string, page: number, limit: number) {
+  const where = { userId };
+  const [total, items] = await Promise.all([
+    prisma.order.count({ where }),
+    prisma.order.findMany({
+      where,
+      include: orderInclude,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+  ]);
+  return { items, total };
+}
+
+// Restores stock for each line — called when an order is cancelled (admin, P13).
+export async function restoreStock(orderId: string) {
+  const items = await prisma.orderItem.findMany({ where: { orderId, variantId: { not: null } } });
+  await prisma.$transaction(
+    items.map((i) =>
+      prisma.productVariant.update({
+        where: { id: i.variantId! },
+        data: { stockQty: { increment: i.quantity } },
+      }),
+    ),
+  );
+}
