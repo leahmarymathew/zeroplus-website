@@ -22,8 +22,12 @@ const Env = z.object({
   RESEND_API_KEY: z.string().default(""),
   EMAIL_FROM: z.string().default("Zeroplus <onboarding@resend.dev>"),
 
-  OTP_PROVIDER: z.enum(["console", "msg91"]).default("console"),
-  MSG91_AUTH_KEY: z.string().default(""),
+  OTP_PROVIDER: z.enum(["console", "whatsapp"]).default("console"),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().default(""),
+  WHATSAPP_ACCESS_TOKEN: z.string().default(""),
+  WHATSAPP_OTP_TEMPLATE: z.string().default("otp_verification"),
+  WHATSAPP_TEMPLATE_LANG: z.string().default("en"),
+  WHATSAPP_API_VERSION: z.string().default("v21.0"),
 
   PORT: z.coerce.number().default(4000),
   FRONTEND_URL: z.string().default("http://localhost:3000"),
@@ -71,9 +75,19 @@ export const config = {
   },
   otp: {
     provider: env.OTP_PROVIDER,
-    msg91AuthKey: env.MSG91_AUTH_KEY,
     ttlSeconds: 300, // plan Section 5: 5 minutes
     maxAttempts: 5,
+    // WhatsApp Business Platform (Meta Cloud API) — replaces MSG91/SMS.
+    // No DLT registration needed; we still mint/hash/verify the code ourselves,
+    // WhatsApp only delivers it via an approved AUTHENTICATION-category template.
+    whatsapp: {
+      phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID,
+      accessToken: env.WHATSAPP_ACCESS_TOKEN,
+      template: env.WHATSAPP_OTP_TEMPLATE,
+      lang: env.WHATSAPP_TEMPLATE_LANG,
+      apiVersion: env.WHATSAPP_API_VERSION,
+      enabled: env.WHATSAPP_PHONE_NUMBER_ID !== "" && env.WHATSAPP_ACCESS_TOKEN !== "",
+    },
   },
   port: env.PORT,
   frontendUrl: env.FRONTEND_URL,

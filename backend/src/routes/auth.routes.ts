@@ -7,6 +7,8 @@ import { unauthorized } from "../lib/errors.js";
 import { verifyRefreshToken } from "../lib/jwt.js";
 import { config } from "../config.js";
 import * as auth from "../services/auth.service.js";
+import { mergeGuestCart } from "../services/cart.service.js";
+import { GUEST_COOKIE } from "../middleware/guestCart.js";
 
 export const authRouter = Router();
 
@@ -46,6 +48,7 @@ const registerSchema = z.object({
 
 authRouter.post("/register", authLimiter, validate(registerSchema), async (req, res) => {
   const { accessToken, refreshToken, user } = await auth.register(req.body);
+  await mergeGuestCart(req.cookies?.[GUEST_COOKIE], user.id);
   setRefreshCookie(res, refreshToken);
   ok(res, { accessToken, user }, undefined, 201);
 });
@@ -57,6 +60,7 @@ const loginSchema = z.object({
 
 authRouter.post("/login", authLimiter, validate(loginSchema), async (req, res) => {
   const { accessToken, refreshToken, user } = await auth.login(req.body);
+  await mergeGuestCart(req.cookies?.[GUEST_COOKIE], user.id);
   setRefreshCookie(res, refreshToken);
   ok(res, { accessToken, user });
 });
@@ -65,6 +69,7 @@ const googleSchema = z.object({ idToken: z.string().min(1) });
 
 authRouter.post("/google", authLimiter, validate(googleSchema), async (req, res) => {
   const { accessToken, refreshToken, user } = await auth.loginWithGoogle(req.body.idToken);
+  await mergeGuestCart(req.cookies?.[GUEST_COOKIE], user.id);
   setRefreshCookie(res, refreshToken);
   ok(res, { accessToken, user });
 });
