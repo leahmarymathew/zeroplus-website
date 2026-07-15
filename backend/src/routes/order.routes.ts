@@ -80,6 +80,7 @@ ordersRouter.post("/", optionalAuth, guestCart, validate(createSchema), async (r
       paymentMethod: body.paymentMethod,
       contactEmail: body.contactEmail,
       contactName: body.contactName,
+      otpId: body.otpId,
     },
     cartKey,
   );

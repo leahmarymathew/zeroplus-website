@@ -105,3 +105,32 @@ export async function refresh(userId: string) {
   if (!user) throw new ApiError(401, "UNAUTHORIZED", "Account no longer exists");
   return issueTokens(user);
 }
+
+// Sends a PASSWORD_RESET OTP. Always resolves the same way whether or not an
+// account exists for the phone — never leak which numbers are registered.
+export async function forgotPassword(phone: string) {
+  const user = await prisma.user.findUnique({ where: { phone } });
+  if (user) {
+    const { sendOtp } = await import("./otp.service.js");
+    return sendOtp(phone, "PASSWORD_RESET");
+  }
+  // Fake a plausible response for unknown numbers.
+  return { otpId: "otp_none", expiresInSeconds: config.otp.ttlSeconds };
+}
+
+export async function resetPassword(input: { otpId: string; code: string; newPassword: string }) {
+  const { verifyOtp, consumeOtp } = await import("./otp.service.js");
+  const otp = await verifyOtp(input.otpId, input.code);
+  if (otp.purpose !== "PASSWORD_RESET" || otp.consumed) {
+    throw new ApiError(400, "OTP_INVALID", "Invalid reset code");
+  }
+  const user = await prisma.user.findUnique({ where: { phone: otp.phone } });
+  if (!user) throw new ApiError(400, "OTP_INVALID", "Invalid reset code");
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await bcrypt.hash(input.newPassword, 10) },
+  });
+  await consumeOtp(input.otpId);
+  return { reset: true };
+}

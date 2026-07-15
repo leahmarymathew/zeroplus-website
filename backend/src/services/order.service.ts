@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { ApiError, notFound, forbidden } from "../lib/errors.js";
 import { priceOrder } from "./pricing.js";
 import { sendOrderConfirmation } from "../lib/mailer.js";
+import { assertCheckoutOtp, consumeOtp } from "./otp.service.js";
 import { config } from "../config.js";
 import type { PaymentMethod } from "../generated/prisma/enums.js";
 import type { CartKey } from "./cart.service.js";
@@ -31,6 +32,7 @@ export interface CreateOrderParams {
   paymentMethod: PaymentMethod;
   contactEmail?: string; // guest confirmation/tracking email (plan 6.1)
   contactName?: string;
+  otpId?: string; // required for COD (plan 6.4)
 }
 
 const orderInclude = { items: true } as const;
@@ -46,6 +48,13 @@ export async function createOrder(params: CreateOrderParams, cartKey?: CartKey) 
   // Kit lines are validated + priced in the kits phase (P16).
   if (params.items.some((i) => i.kitId)) {
     throw new ApiError(501, "NOT_IMPLEMENTED", "Kit orders are not enabled yet");
+  }
+
+  // COD requires a verified phone (plan 6.4). Check validity before touching
+  // stock; the OTP is consumed only after the order commits (below), so a
+  // failed checkout leaves it reusable. Prepaid (PhonePe) skips OTP entirely.
+  if (params.paymentMethod === "COD") {
+    await assertCheckoutOtp(params.addressSnapshot.phone, params.otpId);
   }
 
   // Re-derive every line from the DB — never trust client-sent prices/names.
@@ -128,6 +137,11 @@ export async function createOrder(params: CreateOrderParams, cartKey?: CartKey) 
     }
     return created;
   });
+
+  // Order committed — now burn the COD OTP so it can't authorize another order.
+  if (params.paymentMethod === "COD" && params.otpId) {
+    await consumeOtp(params.otpId).catch(() => {});
+  }
 
   // Email after the commit — a mail failure must never roll back a real order.
   const to = params.userId

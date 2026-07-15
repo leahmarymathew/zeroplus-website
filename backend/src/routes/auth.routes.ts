@@ -93,3 +93,19 @@ authRouter.post("/logout", (_req, res) => {
   res.clearCookie(REFRESH_COOKIE, { path: "/v1/auth" });
   ok(res, { loggedOut: true });
 });
+
+const forgotSchema = z.object({ phone: phoneSchema });
+
+authRouter.post("/forgot-password", authLimiter, validate(forgotSchema), async (req, res) => {
+  ok(res, await auth.forgotPassword(req.body.phone));
+});
+
+const resetSchema = z.object({
+  otpId: z.string().min(1),
+  code: z.string().regex(/^[0-9]{6}$/),
+  newPassword: z.string().min(8).max(100),
+});
+
+authRouter.post("/reset-password", authLimiter, validate(resetSchema), async (req, res) => {
+  ok(res, await auth.resetPassword(req.body));
+});
