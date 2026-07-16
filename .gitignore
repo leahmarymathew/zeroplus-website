@@ -28,3 +28,9 @@ Thumbs.db
 
 # Prisma
 *.db
+
+# Prisma generated client
+backend/src/generated/
+
+# Build output
+backend/dist/

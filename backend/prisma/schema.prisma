@@ -1,0 +1,296 @@
+// Zeroplus data model — mirrors docs/plan.md Section 5 field-for-field.
+// camelCase everywhere; API responses use these names unchanged (Section 6.1).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  PLACED
+  CONFIRMED
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  PHONEPE
+  COD
+}
+
+enum PaymentTxnStatus {
+  CREATED
+  PAID
+  FAILED
+}
+
+enum OtpPurpose {
+  CHECKOUT
+  LOGIN
+  PASSWORD_RESET
+}
+
+enum BannerStatus {
+  ACTIVE
+  SCHEDULED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String?  @unique
+  phone        String   @unique
+  passwordHash String?
+  googleId     String?  @unique
+  role         Role     @default(CUSTOMER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  addresses Address[]
+  orders    Order[]
+  reviews   Review[]
+  wishlist  Wishlist[]
+  cartItems CartItem[]
+}
+
+model Address {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String?
+  line1     String
+  line2     String?
+  city      String
+  state     String
+  pincode   String
+  phone     String
+  isDefault Boolean @default(false)
+}
+
+model Category {
+  id       String     @id @default(cuid())
+  name     String
+  slug     String     @unique
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  imageUrl String?
+  products Product[]
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  description    String
+  categoryId     String
+  category       Category @relation(fields: [categoryId], references: [id])
+  brand          String?
+  safetyInfo     String?
+  certifications String[] @default([])
+  ownerHighlight String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  variants ProductVariant[]
+  images   ProductImage[]
+  reviews  Review[]
+  wishlist Wishlist[]
+}
+
+model ProductVariant {
+  id             String  @id @default(cuid())
+  productId      String
+  product        Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  label          String
+  price          Int // rupees, integer — Section 6.1
+  compareAtPrice Int?
+  stockQty       Int     @default(0)
+  sku            String  @unique
+
+  cartItems      CartItem[]
+  kitSlotOptions KitSlotOption[]
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  sortOrder Int     @default(0)
+}
+
+model Kit {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String
+  basePrice   Int
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  slots     KitSlot[]
+  cartItems CartItem[]
+}
+
+model KitSlot {
+  id        String          @id @default(cuid())
+  kitId     String
+  kit       Kit             @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  label     String
+  sortOrder Int             @default(0)
+  options   KitSlotOption[]
+}
+
+model KitSlotOption {
+  id               String         @id @default(cuid())
+  kitSlotId        String
+  kitSlot          KitSlot        @relation(fields: [kitSlotId], references: [id], onDelete: Cascade)
+  productVariantId String
+  productVariant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  priceAdjustment  Int?
+}
+
+model CartItem {
+  id            String          @id @default(cuid())
+  sessionId     String?
+  userId        String?
+  user          User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  variantId     String?
+  variant       ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  kitId         String?
+  kit           Kit?            @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  kitSelections Json? // map of kitSlotId -> chosen productVariantId
+  quantity      Int
+
+  @@index([sessionId])
+  @@index([userId])
+}
+
+model Order {
+  id               String        @id @default(cuid())
+  orderNumber      String        @unique // ZP-00123
+  userId           String?
+  user             User?         @relation(fields: [userId], references: [id])
+  status           OrderStatus   @default(PLACED)
+  paymentStatus    PaymentStatus @default(PENDING)
+  paymentMethod    PaymentMethod
+  subtotal         Int
+  discount         Int           @default(0)
+  shippingFee      Int           @default(0)
+  codFee           Int?
+  total            Int
+  addressSnapshot  Json // frozen at order time — later address edits never rewrite history
+  contactEmail     String? // guest orders: confirmation/tracking email (no account email)
+  contactName      String? // guest orders: name for the order (addressSnapshot has none)
+  guestAccessToken String?       @unique // set only for guest orders; emailed tracking link
+  trackingNumber   String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  items    OrderItem[]
+  payments Payment[]
+
+  @@index([userId])
+}
+
+model OrderItem {
+  id                    String  @id @default(cuid())
+  orderId               String
+  order                 Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId             String? // intentionally no relation — snapshots below survive catalog changes
+  kitId                 String?
+  kitName               String?
+  kitSelectionsSnapshot Json? // slot label -> "product — variant" text, frozen at order time
+  productName           String?
+  variantLabel          String?
+  quantity              Int
+  priceAtPurchase       Int
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int // 1–5
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@unique([productId, userId])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model Payment {
+  id                           String           @id @default(cuid())
+  orderId                      String
+  order                        Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  phonepeMerchantTransactionId String?          @unique // ours, generated per attempt
+  phonepeTransactionId         String? // PhonePe's, returned on completion
+  status                       PaymentTxnStatus @default(CREATED)
+  amount                       Int
+}
+
+model OtpRequest {
+  id        String     @id @default(cuid())
+  phone     String
+  codeHash  String // never store the plaintext code
+  purpose   OtpPurpose
+  expiresAt DateTime
+  verified  Boolean    @default(false)
+  attempts  Int        @default(0)
+  consumed  Boolean    @default(false) // an OTP authorizes exactly one action
+  createdAt DateTime   @default(now())
+
+  @@index([phone, purpose])
+}
+
+// Not in plan Section 5 — modelled after frontend/lib/mock/banners.ts,
+// which the admin Banners screen (plan Section 2.2) is built against.
+model Banner {
+  id        String       @id @default(cuid())
+  slotLabel String // e.g. "Homepage Hero — Slide 1"
+  title     String
+  imageUrl  String?
+  status    BannerStatus @default(ACTIVE)
+  sortOrder Int          @default(0)
+}
+
+// Atomic counter for human-readable order numbers (ZP-00123).
+// count()+1 races under concurrency and breaks after deletions.
+model OrderCounter {
+  id    Int @id @default(1)
+  value Int @default(0)
+}
