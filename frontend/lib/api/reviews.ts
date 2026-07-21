@@ -1,12 +1,14 @@
 import type { ApiResult, Review } from "@/lib/types";
 import { MOCK_REVIEWS } from "@/lib/mock/reviews";
 import { delay } from "./delay";
+import { api, unwrap, USE_MOCKS } from "./client";
 
 // module-level so newly-submitted reviews persist for the session (not across reloads)
 const reviews = [...MOCK_REVIEWS];
 
 // GET /v1/products/:id/reviews — Section 6.2
 export async function getReviews(productId: string): Promise<ApiResult<Array<Review & { userName: string }>>> {
+  if (!USE_MOCKS) return unwrap<Array<Review & { userName: string }>>(api.get(`/products/${productId}/reviews`));
   await delay(150);
   return { success: true, data: reviews.filter((r) => r.productId === productId) };
 }
