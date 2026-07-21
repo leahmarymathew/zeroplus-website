@@ -1,6 +1,7 @@
 import type { ApiResult } from "@/lib/types";
 import { MOCK_BANNERS, type Banner } from "@/lib/mock/banners";
 import { delay } from "@/lib/api/delay";
+import { api, unwrap, USE_MOCKS } from "@/lib/api/client";
 
 const STORAGE_KEY = "zeroplus-admin-banners";
 
@@ -23,11 +24,13 @@ function writeBanners(banners: Banner[]) {
 }
 
 export async function getAdminBanners(): Promise<ApiResult<Banner[]>> {
+  if (!USE_MOCKS) return unwrap<Banner[]>(api.get("/admin/banners"));
   await delay(150);
   return { success: true, data: [...readBanners()].sort((a, b) => a.sortOrder - b.sortOrder) };
 }
 
 export async function addBanner(title: string): Promise<ApiResult<Banner>> {
+  if (!USE_MOCKS) return unwrap<Banner>(api.post("/admin/banners", { title }));
   await delay(200);
   const banners = readBanners();
   const banner: Banner = {
@@ -44,6 +47,7 @@ export async function addBanner(title: string): Promise<ApiResult<Banner>> {
 }
 
 export async function removeBanner(id: string): Promise<ApiResult<{ id: string }>> {
+  if (!USE_MOCKS) return unwrap<{ id: string }>(api.delete(`/admin/banners/${id}`));
   await delay(150);
   const remaining = readBanners()
     .filter((b) => b.id !== id)

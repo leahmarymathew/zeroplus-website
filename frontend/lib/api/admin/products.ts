@@ -1,6 +1,7 @@
 import type { ApiResult, Product, ProductVariant } from "@/lib/types";
 import { MOCK_PRODUCTS } from "@/lib/mock/products";
 import { delay } from "@/lib/api/delay";
+import { api, unwrap, USE_MOCKS } from "@/lib/api/client";
 
 const STORAGE_KEY = "zeroplus-admin-products";
 
@@ -51,6 +52,7 @@ function stockBucket(p: Product): "in" | "low" | "out" {
 // GET /v1/admin/products — Section 6.2. Includes inactive products, unlike
 // the public GET /v1/products.
 export async function getAdminProducts(params: GetAdminProductsParams = {}): Promise<ApiResult<Product[]>> {
+  if (!USE_MOCKS) return unwrap<Product[]>(api.get("/admin/products", { params }));
   await delay(150);
   let results = readProducts();
 
@@ -81,6 +83,7 @@ export async function getAdminProducts(params: GetAdminProductsParams = {}): Pro
 }
 
 export async function getAdminProduct(id: string): Promise<ApiResult<Product>> {
+  if (!USE_MOCKS) return unwrap<Product>(api.get(`/admin/products/${id}`));
   await delay(150);
   const product = readProducts().find((p) => p.id === id);
   if (!product) {
@@ -92,7 +95,11 @@ export async function getAdminProduct(id: string): Promise<ApiResult<Product>> {
 export type ProductFormInput = Omit<
   Product,
   "id" | "slug" | "images" | "rating" | "reviewCount" | "createdAt" | "updatedAt" | "variants"
-> & { variants: Omit<ProductVariant, "id" | "productId">[] };
+> & {
+  variants: Omit<ProductVariant, "id" | "productId">[];
+  // Cover + gallery photos, in display order. First image is the cover.
+  images?: { url: string; sortOrder?: number }[];
+};
 
 function slugify(name: string) {
   return name
@@ -103,6 +110,7 @@ function slugify(name: string) {
 
 // POST /v1/admin/products — Section 6.2
 export async function createProduct(input: ProductFormInput): Promise<ApiResult<Product>> {
+  if (!USE_MOCKS) return unwrap<Product>(api.post("/admin/products", input));
   await delay(200);
   const products = readProducts();
   const id = `prod_${crypto.randomUUID().slice(0, 8)}`;
@@ -111,7 +119,12 @@ export async function createProduct(input: ProductFormInput): Promise<ApiResult<
     ...input,
     id,
     slug: slugify(input.name) || id,
-    images: [],
+    images: (input.images ?? []).map((img, i) => ({
+      id: `${id}_img${i}`,
+      productId: id,
+      url: img.url,
+      sortOrder: img.sortOrder ?? i,
+    })),
     rating: 0,
     reviewCount: 0,
     createdAt: now,
@@ -125,6 +138,7 @@ export async function createProduct(input: ProductFormInput): Promise<ApiResult<
 
 // PATCH /v1/admin/products/:id — Section 6.2/6.3
 export async function updateProduct(id: string, input: ProductFormInput): Promise<ApiResult<Product>> {
+  if (!USE_MOCKS) return unwrap<Product>(api.patch(`/admin/products/${id}`, input));
   await delay(200);
   const products = readProducts();
   const index = products.findIndex((p) => p.id === id);
@@ -132,10 +146,16 @@ export async function updateProduct(id: string, input: ProductFormInput): Promis
     return { success: false, error: { code: "NOT_FOUND", message: "Product not found" } };
   }
   const existing = products[index];
+  const { images: inputImages, ...rest } = input;
   const updated: Product = {
     ...existing,
-    ...input,
+    ...rest,
     updatedAt: new Date().toISOString(),
+    // Re-map submitted images to ProductImage rows; fall back to existing when
+    // the form didn't touch them.
+    images: inputImages
+      ? inputImages.map((img, i) => ({ id: `${id}_img${i}`, productId: id, url: img.url, sortOrder: img.sortOrder ?? i }))
+      : existing.images,
     variants: input.variants.map((v, i) => {
       const existingVariant = existing.variants[i];
       return { ...v, id: existingVariant?.id ?? `${id}_v${i}`, productId: id };
@@ -148,6 +168,7 @@ export async function updateProduct(id: string, input: ProductFormInput): Promis
 
 // DELETE /v1/admin/products/:id — Section 6.2
 export async function deleteProduct(id: string): Promise<ApiResult<{ id: string }>> {
+  if (!USE_MOCKS) return unwrap<{ id: string }>(api.delete(`/admin/products/${id}`));
   await delay(150);
   const products = readProducts().filter((p) => p.id !== id);
   writeProducts(products);

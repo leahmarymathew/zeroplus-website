@@ -20,6 +20,13 @@ export async function submitReview(
   productId: string,
   input: { rating: number; comment: string | null; userName: string }
 ): Promise<ApiResult<Review & { userName: string }>> {
+  if (!USE_MOCKS) {
+    // The backend derives the author from the JWT and gates on a delivered
+    // order; only rating + comment are sent.
+    return unwrap<Review & { userName: string }>(
+      api.post(`/products/${productId}/reviews`, { rating: input.rating, comment: input.comment })
+    );
+  }
   await delay(200);
   const newReview: Review & { userName: string } = {
     id: `rev_${Date.now()}`,

@@ -1,6 +1,21 @@
 import type { Address, ApiResult, CartItem, Order, OrderStatus, PaymentMethod } from "@/lib/types";
 import { MOCK_ORDERS } from "@/lib/mock/orders";
 import { delay } from "./delay";
+import { api, unwrap, USE_MOCKS } from "./client";
+
+// The backend echoes the created order plus, for PhonePe, the hosted-page URL
+// the browser must redirect to. COD orders come back without it.
+export type CreatedOrder = Order & { phonepeRedirectUrl?: string | null };
+
+// Cart items carry display fields the backend ignores; it re-prices from the
+// DB. Send only what POST /v1/orders validates: one of variantId / kitId.
+function toOrderLines(items: CartItem[]) {
+  return items.map((i) =>
+    i.kitId
+      ? { kitId: i.kitId, kitSelections: i.kitSelections ?? {}, quantity: i.quantity }
+      : { variantId: i.variantId as string, quantity: i.quantity }
+  );
+}
 
 const STORAGE_KEY = "zeroplus-orders";
 
@@ -39,13 +54,29 @@ export interface CreateOrderInput {
   addressSnapshot: Omit<Address, "id" | "userId" | "isDefault">;
   paymentMethod: PaymentMethod;
   userId?: string | null;
+  // Guest contact + the verified checkout OTP (required for COD).
+  contactEmail?: string | null;
+  contactName?: string | null;
+  otpId?: string | null;
 }
 
-// POST /v1/orders — Section 6.3. No backend yet, so this simulates the
-// response shape locally instead of calling PhonePe or persisting to a
-// database. Swap the body for a real POST once /backend exists; callers
-// (Checkout page) don't need to change.
-export async function createOrder(input: CreateOrderInput): Promise<ApiResult<Order>> {
+// POST /v1/orders — Section 6.3. Against the real backend, identity comes from
+// the JWT (not the body) and totals are recomputed from the DB; for PhonePe the
+// response carries phonepeRedirectUrl. In mock mode this simulates the response
+// shape in localStorage instead.
+export async function createOrder(input: CreateOrderInput): Promise<ApiResult<CreatedOrder>> {
+  if (!USE_MOCKS) {
+    return unwrap<CreatedOrder>(
+      api.post("/orders", {
+        items: toOrderLines(input.items),
+        addressSnapshot: input.addressSnapshot,
+        paymentMethod: input.paymentMethod,
+        ...(input.contactEmail ? { contactEmail: input.contactEmail } : {}),
+        ...(input.contactName ? { contactName: input.contactName } : {}),
+        ...(input.otpId ? { otpId: input.otpId } : {}),
+      })
+    );
+  }
   const subtotal = input.items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
   const shippingFee = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : SHIPPING_FEE;
   const codFee = input.paymentMethod === "COD" ? COD_FEE : null;
@@ -93,8 +124,12 @@ export async function createOrder(input: CreateOrderInput): Promise<ApiResult<Or
   return { success: true, data: order };
 }
 
-// GET /v1/orders/:id — Section 6.3
-export async function getOrder(orderId: string): Promise<ApiResult<Order>> {
+// GET /v1/orders/:id — Section 6.3. A guest passes their guestAccessToken; a
+// logged-in owner is resolved from the JWT.
+export async function getOrder(orderId: string, token?: string | null): Promise<ApiResult<Order>> {
+  if (!USE_MOCKS) {
+    return unwrap<Order>(api.get(`/orders/${orderId}`, token ? { params: { token } } : undefined));
+  }
   const order = readOrders().find((o) => o.id === orderId);
   if (!order) {
     return { success: false, error: { code: "NOT_FOUND", message: "Order not found" } };
@@ -102,13 +137,16 @@ export async function getOrder(orderId: string): Promise<ApiResult<Order>> {
   return { success: true, data: order };
 }
 
-// GET /v1/orders — Section 6.2 (current user's order history)
+// GET /v1/orders — Section 6.2 (current user's order history). The backend
+// resolves the user from the JWT; the userId arg is only used by the mock.
 export async function getOrdersByUser(userId: string): Promise<ApiResult<Order[]>> {
+  if (!USE_MOCKS) return unwrap<Order[]>(api.get("/orders"));
   return { success: true, data: readOrders().filter((o) => o.userId === userId) };
 }
 
 // GET /v1/admin/orders — Section 6.2
 export async function getAdminOrders(): Promise<ApiResult<Order[]>> {
+  if (!USE_MOCKS) return unwrap<Order[]>(api.get("/admin/orders", { params: { limit: 50 } }));
   await delay(150);
   return { success: true, data: readOrders() };
 }
@@ -119,6 +157,14 @@ export async function updateOrderStatus(
   status: OrderStatus,
   trackingNumber?: string | null
 ): Promise<ApiResult<Order>> {
+  if (!USE_MOCKS) {
+    return unwrap<Order>(
+      api.patch(`/admin/orders/${orderId}/status`, {
+        status,
+        ...(trackingNumber !== undefined ? { trackingNumber } : {}),
+      })
+    );
+  }
   await delay(150);
   const orders = readOrders();
   const index = orders.findIndex((o) => o.id === orderId);
