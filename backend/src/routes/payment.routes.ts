@@ -51,6 +51,10 @@ if (!config.phonepe.enabled) {
     const mtid = String(req.params.merchantTransactionId);
     await applyPaymentResult(mtid, "COMPLETED");
     const { orderId } = await getPaymentStatus(mtid);
-    res.redirect(`${config.frontendUrl}/order-confirmation/${orderId}`);
+    // Preserve the guest token (set by initiatePayment) so a guest can fetch
+    // their order on the confirmation page.
+    const token = typeof req.query.token === "string" ? req.query.token : "";
+    const q = token ? `?token=${encodeURIComponent(token)}` : "";
+    res.redirect(`${config.frontendUrl}/order-confirmation/${orderId}${q}`);
   });
 }

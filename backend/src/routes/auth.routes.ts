@@ -41,7 +41,9 @@ const authLimiter = rateLimit({
 
 const registerSchema = z.object({
   name: z.string().min(1).max(100),
-  email: z.string().email(),
+  // email is optional — customers can register with just a phone number.
+  // Accept an empty string (from an untouched form field) as "no email".
+  email: z.union([z.string().email(), z.literal("")]).optional().nullable(),
   phone: phoneSchema,
   password: z.string().min(8).max(100),
 });
@@ -53,8 +55,9 @@ authRouter.post("/register", authLimiter, validate(registerSchema), async (req, 
   ok(res, { accessToken, user }, undefined, 201);
 });
 
+// `identifier` is an email OR a phone number — the service resolves by shape.
 const loginSchema = z.object({
-  email: z.string().email(),
+  identifier: z.string().min(1),
   password: z.string().min(1),
 });
 

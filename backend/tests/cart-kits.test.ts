@@ -24,7 +24,7 @@ describe("cart", () => {
 
     // register on the same agent -> guest cart merges to the user
     await agent.post("/v1/auth/register").send({ name: "A", email: "a@example.com", phone: "+919812345678", password: "password123" });
-    const login = await agent.post("/v1/auth/login").send({ email: "a@example.com", password: "password123" });
+    const login = await agent.post("/v1/auth/login").send({ identifier: "a@example.com", password: "password123" });
     const token = login.body.data.accessToken;
     const cart = await agent.get("/v1/cart").set("Authorization", `Bearer ${token}`);
     expect(cart.body.data.items).toHaveLength(1);
@@ -87,7 +87,7 @@ describe("kit integrity", () => {
   it("blocks a review from a user with no delivered order", async () => {
     const { product } = await seedProduct(5, 100);
     const user = await seedUser("r@example.com", "password123");
-    const login = await request(app).post("/v1/auth/login").send({ email: "r@example.com", password: "password123" });
+    const login = await request(app).post("/v1/auth/login").send({ identifier: "r@example.com", password: "password123" });
     const res = await request(app)
       .post(`/v1/products/${product.id}/reviews`)
       .set("Authorization", `Bearer ${login.body.data.accessToken}`)

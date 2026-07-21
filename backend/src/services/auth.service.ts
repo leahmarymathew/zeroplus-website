@@ -24,12 +24,14 @@ function issueTokens(user: User) {
 
 export async function register(input: {
   name: string;
-  email: string;
+  email?: string | null;
   phone: string;
   password: string;
 }) {
+  // email is optional; only check for a collision when one was provided.
+  const email = input.email?.trim() || null;
   const [emailTaken, phoneTaken] = await Promise.all([
-    prisma.user.findUnique({ where: { email: input.email } }),
+    email ? prisma.user.findUnique({ where: { email } }) : null,
     prisma.user.findUnique({ where: { phone: input.phone } }),
   ]);
   if (emailTaken) throw new ApiError(409, "EMAIL_TAKEN", "An account with this email already exists");
@@ -38,7 +40,7 @@ export async function register(input: {
   const user = await prisma.user.create({
     data: {
       name: input.name,
-      email: input.email,
+      email,
       phone: input.phone,
       passwordHash: await bcrypt.hash(input.password, 10),
     },
@@ -46,12 +48,16 @@ export async function register(input: {
   return issueTokens(user);
 }
 
-// Identical error for unknown email and wrong password — never reveal
+// Identical error for unknown account and wrong password — never reveal
 // which accounts exist.
-const INVALID = () => new ApiError(401, "INVALID_CREDENTIALS", "Invalid email or password");
+const INVALID = () => new ApiError(401, "INVALID_CREDENTIALS", "Invalid credentials");
 
-export async function login(input: { email: string; password: string }) {
-  const user = await prisma.user.findUnique({ where: { email: input.email } });
+// A single `identifier` may be an email or a phone number; resolve by whichever
+// matches its shape so customers can sign in with either.
+export async function login(input: { identifier: string; password: string }) {
+  const identifier = input.identifier.trim();
+  const where = identifier.includes("@") ? { email: identifier } : { phone: identifier };
+  const user = await prisma.user.findUnique({ where });
   if (!user?.passwordHash) throw INVALID();
   const valid = await bcrypt.compare(input.password, user.passwordHash);
   if (!valid) throw INVALID();
