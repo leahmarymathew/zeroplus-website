@@ -369,7 +369,7 @@ export async function reportSummary(from?: Date, to?: Date) {
     prisma.order.findMany({ where, select: { id: true } }),
     prisma.orderItem.groupBy({
       by: ["productName"],
-      where: { order: { is: where } },
+      where: { order: { is: where }, productName: { not: null } },
       _sum: { quantity: true },
       orderBy: { _sum: { quantity: "desc" } },
       take: 10,
