@@ -11,6 +11,7 @@ import { Header } from "@/components/layout/Header";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/store/authStore";
+import { login as apiLogin, register as apiRegister } from "@/lib/api/auth";
 
 const loginSchema = z.object({
   identifier: z.string().min(3, "Enter your phone number or email"),
@@ -62,31 +63,29 @@ function LoginPageContent() {
   const loginForm = useForm<LoginForm>({ resolver: zodResolver(loginSchema) });
   const registerForm = useForm<RegisterForm>({ resolver: zodResolver(registerSchema) });
 
-  function onLogin() {
-    // No backend yet — accept any well-formed credentials and create a mock session.
-    login({
-      id: crypto.randomUUID(),
-      name: "Sample User",
-      email: loginForm.getValues("identifier").includes("@") ? loginForm.getValues("identifier") : null,
-      phone: loginForm.getValues("identifier").includes("@") ? "9800000000" : loginForm.getValues("identifier"),
-      role: "CUSTOMER",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+  async function onLogin(values: LoginForm) {
+    const res = await apiLogin(values.identifier, values.password);
+    if (!res.success) {
+      toast.error(res.error.message);
+      return;
+    }
+    login(res.data.user, res.data.accessToken);
     toast.success("Logged in");
     router.push(redirect);
   }
 
-  function onRegister(values: RegisterForm) {
-    login({
-      id: crypto.randomUUID(),
+  async function onRegister(values: RegisterForm) {
+    const res = await apiRegister({
       name: values.name,
-      email: values.email || null,
       phone: values.phone,
-      role: "CUSTOMER",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      email: values.email || null,
+      password: values.password,
     });
+    if (!res.success) {
+      toast.error(res.error.message);
+      return;
+    }
+    login(res.data.user, res.data.accessToken);
     toast.success("Account created");
     router.push(redirect);
   }

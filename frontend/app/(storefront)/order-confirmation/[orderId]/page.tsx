@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { Suspense, use, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Check } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { LinkButton } from "@/components/ui/Button";
@@ -14,12 +15,23 @@ const PAYMENT_METHOD_LABEL: Record<Order["paymentMethod"], string> = {
 };
 
 export default function OrderConfirmationPage({ params }: { params: Promise<{ orderId: string }> }) {
+  return (
+    <Suspense fallback={null}>
+      <OrderConfirmationContent params={params} />
+    </Suspense>
+  );
+}
+
+function OrderConfirmationContent({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params);
+  // Guests arrive with ?token=<guestAccessToken> (from checkout or the PhonePe
+  // redirect); logged-in owners are resolved from their JWT.
+  const token = useSearchParams().get("token");
   const [order, setOrder] = useState<Order | null | undefined>(undefined);
 
   useEffect(() => {
-    getOrder(orderId).then((res) => setOrder(res.success ? res.data : null));
-  }, [orderId]);
+    getOrder(orderId, token).then((res) => setOrder(res.success ? res.data : null));
+  }, [orderId, token]);
 
   return (
     <>

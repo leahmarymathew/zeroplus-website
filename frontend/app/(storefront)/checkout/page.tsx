@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { useCartStore, selectCartSubtotal } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
 import { createOrder, COD_FEE, FREE_DELIVERY_THRESHOLD, SHIPPING_FEE } from "@/lib/api/orders";
+import { sendOtp, verifyOtp } from "@/lib/api/otp";
 import { formatPrice } from "@/lib/format";
 import type { PaymentMethod } from "@/lib/types";
 
@@ -36,12 +37,15 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("PHONEPE");
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
-  const [otpDigits, setOtpDigits] = useState(["", "", "", ""]);
+  const [otpId, setOtpId] = useState("");
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
   const [placing, setPlacing] = useState(false);
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<AddressForm>({ resolver: zodResolver(addressSchema) });
 
@@ -49,14 +53,33 @@ export default function CheckoutPage() {
   const codFee = paymentMethod === "COD" ? COD_FEE : 0;
   const total = subtotal + shippingFee + codFee;
 
-  function handleSendOtp() {
+  async function handleSendOtp() {
+    const phone = watch("phone");
+    if (!/^\d{10}$/.test(phone ?? "")) {
+      toast.error("Enter your 10-digit phone number above first");
+      return;
+    }
+    setSendingOtp(true);
+    const res = await sendOtp(phone);
+    setSendingOtp(false);
+    if (!res.success) {
+      toast.error(res.error.message);
+      return;
+    }
+    setOtpId(res.data.otpId);
     setOtpSent(true);
-    toast.success("Demo OTP sent — this is a UI-only stub until /backend + MSG91 exist (Section 6.4)");
+    toast.success("OTP sent to your number");
   }
 
-  function handleVerifyOtp() {
-    if (otpDigits.some((d) => d === "")) {
-      toast.error("Enter all 4 digits");
+  async function handleVerifyOtp() {
+    const code = otpDigits.join("");
+    if (code.length !== 6) {
+      toast.error("Enter all 6 digits");
+      return;
+    }
+    const res = await verifyOtp(otpId, code);
+    if (!res.success) {
+      toast.error(res.error.message);
       return;
     }
     setOtpVerified(true);
@@ -77,6 +100,8 @@ export default function CheckoutPage() {
       items,
       paymentMethod,
       userId: user?.id ?? null,
+      contactName: values.fullName,
+      ...(paymentMethod === "COD" ? { otpId } : {}),
       addressSnapshot: {
         label: null,
         line1: values.line1,
@@ -87,13 +112,22 @@ export default function CheckoutPage() {
         phone: values.phone,
       },
     });
-    setPlacing(false);
-    if (res.success) {
-      clearCart();
-      router.push(`/order-confirmation/${res.data.id}`);
-    } else {
+    if (!res.success) {
+      setPlacing(false);
       toast.error(res.error.message);
+      return;
     }
+    clearCart();
+    // PhonePe: hand off to the hosted payment page (the backend redirect brings
+    // the browser back to confirmation, carrying a guest token when needed).
+    if (res.data.phonepeRedirectUrl) {
+      window.location.href = res.data.phonepeRedirectUrl;
+      return;
+    }
+    // COD (or mock): go straight to confirmation. Guests carry their token so
+    // the confirmation page can fetch the order without a JWT.
+    const token = !user && res.data.guestAccessToken ? `?token=${encodeURIComponent(res.data.guestAccessToken)}` : "";
+    router.push(`/order-confirmation/${res.data.id}${token}`);
   }
 
   return (
@@ -157,15 +191,15 @@ export default function CheckoutPage() {
                     {!otpSent ? (
                       <>
                         <p className="mb-2.5 text-[12.5px] text-muted">We&rsquo;ll text an OTP to confirm your COD order.</p>
-                        <Button type="button" variant="primary" className="px-5.5 py-2.5 text-[13.5px]" onClick={handleSendOtp}>
-                          Send OTP
+                        <Button type="button" variant="primary" className="px-5.5 py-2.5 text-[13.5px]" onClick={handleSendOtp} disabled={sendingOtp}>
+                          {sendingOtp ? "Sending…" : "Send OTP"}
                         </Button>
                       </>
                     ) : otpVerified ? (
                       <p className="text-[13px] font-bold text-success-text">✓ Phone number verified</p>
                     ) : (
                       <>
-                        <p className="mb-2.5 text-[12.5px] text-muted">Enter the 4-digit code sent to your number.</p>
+                        <p className="mb-2.5 text-[12.5px] text-muted">Enter the 6-digit code sent to your number.</p>
                         <div className="mb-3 flex gap-2">
                           {otpDigits.map((d, i) => (
                             <input
@@ -177,7 +211,7 @@ export default function CheckoutPage() {
                                 setOtpDigits(next);
                               }}
                               maxLength={1}
-                              className="h-12 w-11 rounded-[10px] border-[1.5px] border-border-pink text-center text-lg font-bold outline-none"
+                              className="h-12 w-full rounded-[10px] border-[1.5px] border-border-pink text-center text-lg font-bold outline-none"
                             />
                           ))}
                         </div>
