@@ -6,6 +6,9 @@ import { getReviews } from "@/lib/api/reviews";
 import { ProductPurchasePanel } from "@/components/storefront/ProductPurchasePanel";
 import { ProductReviews } from "@/components/storefront/ProductReviews";
 import { ProductCardInteractive } from "@/components/storefront/ProductCardInteractive";
+import { ProductGallery } from "@/components/storefront/ProductGallery";
+import { UrgencyWidgets } from "@/components/storefront/UrgencyWidgets";
+import { ProductAccordions } from "@/components/storefront/ProductAccordions";
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -16,6 +19,44 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const [reviewsRes, related] = await Promise.all([getReviews(product.id), getRelatedProducts(product)]);
   const reviews = reviewsRes.success ? reviewsRes.data : [];
 
+  // On sale if any variant has a compare-at price above its selling price.
+  const onSale = product.variants.some((v) => v.compareAtPrice != null && v.compareAtPrice > v.price);
+
+  const accordions = [
+    {
+      title: "Shipping & Returns",
+      body: (
+        <ul className="list-disc space-y-1 pl-4">
+          <li>Free delivery on orders above ₹499; a flat ₹49 applies otherwise.</li>
+          <li>Dispatched within 24–48 hours; delivered in 3–6 business days.</li>
+          <li>7-day easy returns on unused items in original packaging.</li>
+          <li>Cash on Delivery available across serviceable pincodes.</li>
+        </ul>
+      ),
+    },
+    ...(product.safetyInfo || (product.certifications && product.certifications.length > 0)
+      ? [
+          {
+            title: "Safety & Certifications",
+            body: (
+              <div className="space-y-2">
+                {product.safetyInfo && <p className="whitespace-pre-line">{product.safetyInfo}</p>}
+                {product.certifications && product.certifications.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {product.certifications.map((c) => (
+                      <span key={c} className="rounded-full bg-success-bg px-3 py-1 text-[11.5px] font-bold text-success-text-dark">
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ),
+          },
+        ]
+      : []),
+  ];
+
   return (
     <div className="mx-auto max-w-[1200px] px-4 pt-5 pb-14 sm:px-8 sm:pt-8">
       <div className="mb-4 text-[13px] text-muted-light">
@@ -24,27 +65,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
       <div className="flex flex-wrap gap-10">
         <div className="min-w-[280px] flex-1 basis-[380px]">
-          <div className="relative">
-            <div className="flex h-[360px] items-center justify-center rounded-[20px] bg-surface-pink-light text-[11px] font-semibold text-black/30">
-              main product photo
-            </div>
-            {product.ownerHighlight && (
-              <div className="absolute left-3.5 top-3.5 flex items-center gap-1.5 rounded-full bg-ink px-3.5 py-1.5 text-xs font-bold text-white shadow-lg">
-                <Star size={13} fill="currentColor" strokeWidth={0} />
-                {product.ownerHighlight}
-              </div>
-            )}
-          </div>
-          <div className="mt-3 flex gap-2.5">
-            {[0, 1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="flex h-[70px] w-[70px] flex-none items-center justify-center rounded-xl border-[1.5px] border-border-pink-light bg-surface-pink-light text-[8px] font-semibold text-black/25"
-              >
-                photo {i + 1}
-              </div>
-            ))}
-          </div>
+          <ProductGallery images={product.images} name={product.name} ownerHighlight={product.ownerHighlight} onSale={onSale} />
         </div>
 
         <div className="min-w-[280px] flex-1 basis-[380px]">
@@ -62,6 +83,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           {product.brand && <p className="mb-3 text-sm text-muted-light">by {product.brand}</p>}
           <p className="mb-4 text-sm leading-relaxed text-muted">{product.description}</p>
 
+          <UrgencyWidgets seed={product.id} />
+
           <ProductPurchasePanel product={product} />
 
           <div className="flex flex-wrap gap-4 text-[12.5px] text-muted">
@@ -75,6 +98,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               <CreditCard size={15} className="text-info" strokeWidth={1.8} /> COD available
             </span>
           </div>
+
+          <ProductAccordions sections={accordions} />
         </div>
       </div>
 
