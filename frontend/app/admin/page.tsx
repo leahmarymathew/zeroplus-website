@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { getAdminOrders } from "@/lib/api/orders";
 import { getAdminProducts } from "@/lib/api/admin/products";
+import { getReportSummary, type ReportSummary } from "@/lib/api/admin/reports";
 import { formatPrice } from "@/lib/format";
 import type { Order, OrderStatus, Product } from "@/lib/types";
 
@@ -27,12 +28,18 @@ function isThisMonth(iso: string) {
 export default function AdminDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [summary, setSummary] = useState<ReportSummary | null>(null);
 
   useEffect(() => {
     async function run() {
-      const [ordersRes, productsRes] = await Promise.all([getAdminOrders(), getAdminProducts({ sort: "stock" })]);
+      const [ordersRes, productsRes, summaryRes] = await Promise.all([
+        getAdminOrders(),
+        getAdminProducts({ sort: "stock" }),
+        getReportSummary(),
+      ]);
       if (ordersRes.success) setOrders(ordersRes.data);
       if (productsRes.success) setProducts(productsRes.data);
+      if (summaryRes.success) setSummary(summaryRes.data);
     }
     run();
   }, []);
@@ -69,6 +76,23 @@ export default function AdminDashboardPage() {
             <div className="text-xs font-bold text-success-text">{c.sub}</div>
           </div>
         ))}
+      </div>
+
+      <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="rounded-2xl border border-admin-border bg-white p-5">
+          <h2 className="mb-3.5 text-[15px] font-bold">Best-Selling Products</h2>
+          <BestSellerList
+            rows={(summary?.topProducts ?? []).map((p) => ({ name: p.productName ?? "—", quantity: p.quantity }))}
+            emptyLabel="No sales yet."
+          />
+        </div>
+        <div className="rounded-2xl border border-admin-border bg-white p-5">
+          <h2 className="mb-3.5 text-[15px] font-bold">Best-Selling Kits</h2>
+          <BestSellerList
+            rows={(summary?.topKits ?? []).map((k) => ({ name: k.kitName ?? "—", quantity: k.quantity }))}
+            emptyLabel="No kit sales yet."
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.4fr_1fr]">
@@ -113,5 +137,30 @@ export default function AdminDashboardPage() {
         </div>
       </div>
     </AdminShell>
+  );
+}
+
+// Ranked best-sellers list with a units-sold bar, shared by the products and
+// kits panels. The widest bar is the top seller (relative to the max).
+function BestSellerList({ rows, emptyLabel }: { rows: { name: string; quantity: number }[]; emptyLabel: string }) {
+  if (rows.length === 0) return <p className="text-[13px] text-muted-light">{emptyLabel}</p>;
+  const max = Math.max(...rows.map((r) => r.quantity), 1);
+  return (
+    <div className="flex flex-col gap-2.5">
+      {rows.slice(0, 5).map((r, i) => (
+        <div key={r.name + i} className="flex items-center gap-3">
+          <span className="w-4 text-xs font-extrabold text-muted-light">{i + 1}</span>
+          <div className="flex-1">
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-[13px] font-bold">{r.name}</span>
+              <span className="text-xs font-extrabold text-rose">{r.quantity} sold</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-input-fill">
+              <div className="h-full rounded-full bg-rose" style={{ width: `${(r.quantity / max) * 100}%` }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
