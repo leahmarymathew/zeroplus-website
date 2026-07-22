@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { createKit, updateKit } from "@/lib/api/admin/kits";
 import { getAdminProducts } from "@/lib/api/admin/products";
+import { uploadImage } from "@/lib/api/uploads";
 import type { Kit, Product } from "@/lib/types";
 
 interface OptionRow {
@@ -33,8 +34,19 @@ export function KitForm({ kit }: { kit?: Kit }) {
   const [name, setName] = useState(kit?.name ?? "");
   const [description, setDescription] = useState(kit?.description ?? "");
   const [basePrice, setBasePrice] = useState(kit ? String(kit.basePrice) : "");
+  const [imageUrl, setImageUrl] = useState<string | null>(kit?.imageUrl ?? null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [slots, setSlots] = useState<SlotRow[]>(slotRowsFrom(kit));
   const [saving, setSaving] = useState(false);
+
+  async function handleHeroUpload(file: File | undefined) {
+    if (!file) return;
+    setUploadingImage(true);
+    const res = await uploadImage(file);
+    setUploadingImage(false);
+    if (res.success) setImageUrl(res.data.url);
+    else toast.error(res.error.message);
+  }
 
   useEffect(() => {
     getAdminProducts({ sort: "name" }).then((res) => {
@@ -104,7 +116,7 @@ export function KitForm({ kit }: { kit?: Kit }) {
       name: name.trim(),
       description: description.trim(),
       basePrice: Number(basePrice) || 0,
-      imageUrl: kit?.imageUrl ?? null,
+      imageUrl,
       isActive: kit?.isActive ?? true,
       slots: slots.map((s) => ({
         label: s.label.trim(),
@@ -162,9 +174,20 @@ export function KitForm({ kit }: { kit?: Kit }) {
             </div>
             <div>
               <label className="mb-1.5 block text-[12.5px] font-bold">Hero Image</label>
-              <div className="flex h-[42px] items-center justify-center rounded-[10px] border-[1.5px] border-dashed border-border-pink text-[12.5px] font-bold text-rose">
-                + Upload
-              </div>
+              <label className="flex h-[42px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-[10px] border-[1.5px] border-dashed border-border-pink text-[12.5px] font-bold text-rose">
+                {imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imageUrl} alt="Kit hero" className="h-full w-full object-cover" />
+                ) : (
+                  <span>{uploadingImage ? "Uploading…" : "+ Upload"}</span>
+                )}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => handleHeroUpload(e.target.files?.[0])}
+                  className="hidden"
+                />
+              </label>
             </div>
           </div>
         </div>

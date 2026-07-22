@@ -26,12 +26,33 @@ describe("auth", () => {
     expect(res.body.error.code).toBe("EMAIL_TAKEN");
   });
 
-  it("returns the same error for wrong password and unknown email", async () => {
+  it("returns the same error for wrong password and unknown account", async () => {
     await request(app).post("/v1/auth/register").send(creds);
-    const wrongPw = await request(app).post("/v1/auth/login").send({ email: creds.email, password: "nope" });
-    const noUser = await request(app).post("/v1/auth/login").send({ email: "ghost@example.com", password: "whatever" });
+    const wrongPw = await request(app).post("/v1/auth/login").send({ identifier: creds.email, password: "nope" });
+    const noUser = await request(app).post("/v1/auth/login").send({ identifier: "ghost@example.com", password: "whatever" });
     expect(wrongPw.body.error.code).toBe("INVALID_CREDENTIALS");
     expect(noUser.body.error.code).toBe("INVALID_CREDENTIALS");
+  });
+
+  it("registers without an email and logs in by phone", async () => {
+    const phoneOnly = { name: "P", phone: "+919800001111", password: "password123" };
+    const reg = await request(app).post("/v1/auth/register").send(phoneOnly);
+    expect(reg.status).toBe(201);
+    expect(reg.body.data.user.email).toBeNull();
+
+    const byPhone = await request(app)
+      .post("/v1/auth/login")
+      .send({ identifier: phoneOnly.phone, password: phoneOnly.password });
+    expect(byPhone.status).toBe(200);
+    expect(byPhone.body.data.accessToken).toBeTruthy();
+  });
+
+  it("logs in by email or phone for the same account", async () => {
+    await request(app).post("/v1/auth/register").send(creds);
+    const byEmail = await request(app).post("/v1/auth/login").send({ identifier: creds.email, password: creds.password });
+    const byPhone = await request(app).post("/v1/auth/login").send({ identifier: creds.phone, password: creds.password });
+    expect(byEmail.status).toBe(200);
+    expect(byPhone.status).toBe(200);
   });
 
   it("blocks protected routes without a token and non-admins from admin routes", async () => {
@@ -39,7 +60,7 @@ describe("auth", () => {
     expect(noAuth.status).toBe(401);
 
     await seedUser("cust@example.com", "password123", "CUSTOMER");
-    const login = await request(app).post("/v1/auth/login").send({ email: "cust@example.com", password: "password123" });
+    const login = await request(app).post("/v1/auth/login").send({ identifier: "cust@example.com", password: "password123" });
     const token = login.body.data.accessToken;
     const forbidden = await request(app).get("/v1/admin/products").set("Authorization", `Bearer ${token}`);
     expect(forbidden.status).toBe(403);

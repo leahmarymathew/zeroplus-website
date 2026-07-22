@@ -364,12 +364,20 @@ function revenueWhere(from?: Date, to?: Date): Prisma.OrderWhereInput {
 
 export async function reportSummary(from?: Date, to?: Date) {
   const where = revenueWhere(from, to);
-  const [agg, orders, topRows, lowStock] = await Promise.all([
+  const [agg, orders, topRows, topKitRows, lowStock] = await Promise.all([
     prisma.order.aggregate({ where, _sum: { total: true }, _count: { _all: true } }),
     prisma.order.findMany({ where, select: { id: true } }),
     prisma.orderItem.groupBy({
       by: ["productName"],
-      where: { order: { is: where } },
+      where: { order: { is: where }, productName: { not: null } },
+      _sum: { quantity: true },
+      orderBy: { _sum: { quantity: "desc" } },
+      take: 10,
+    }),
+    // Most-selling kits, mirroring topProducts but grouped on the kit snapshot.
+    prisma.orderItem.groupBy({
+      by: ["kitName"],
+      where: { order: { is: where }, kitName: { not: null } },
       _sum: { quantity: true },
       orderBy: { _sum: { quantity: "desc" } },
       take: 10,
@@ -397,6 +405,7 @@ export async function reportSummary(from?: Date, to?: Date) {
     totalRevenue: agg._sum.total ?? 0,
     orderCount: agg._count._all,
     topProducts: topRows.map((r) => ({ productName: r.productName, quantity: r._sum.quantity ?? 0 })),
+    topKits: topKitRows.map((r) => ({ kitName: r.kitName, quantity: r._sum.quantity ?? 0 })),
     revenueByDay: byDay.map((r) => ({ day: r.day.toISOString().slice(0, 10), revenue: Number(r.revenue) })),
     lowStock: lowStock.map((v) => ({
       productName: v.product.name,

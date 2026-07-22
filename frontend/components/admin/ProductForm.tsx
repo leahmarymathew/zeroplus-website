@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { createProduct, updateProduct } from "@/lib/api/admin/products";
+import { ImageUploader } from "@/components/admin/ImageUploader";
 import type { Category, Product } from "@/lib/types";
 
 const CERT_OPTIONS = ["Dermatologically Tested", "Hypoallergenic", "BPA Free", "Cruelty Free", "Fragrance Free"];
@@ -37,6 +38,9 @@ export function ProductForm({ product, categories }: { product?: Product; catego
   const [ownerHighlight, setOwnerHighlight] = useState(product?.ownerHighlight ?? "");
   const [certifications, setCertifications] = useState<Set<string>>(new Set(product?.certifications ?? []));
   const [variants, setVariants] = useState<VariantRow[]>(variantRowsFrom(product));
+  const [images, setImages] = useState<string[]>(
+    [...(product?.images ?? [])].sort((a, b) => a.sortOrder - b.sortOrder).map((img) => img.url)
+  );
   const [saving, setSaving] = useState(false);
 
   function toggleCert(cert: string) {
@@ -78,6 +82,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
       certifications: certifications.size > 0 ? Array.from(certifications) : null,
       ownerHighlight: ownerHighlight.trim() || null,
       isActive: product?.isActive ?? true,
+      images: images.map((url, i) => ({ url, sortOrder: i })),
       variants: variants.map((v) => ({
         label: v.label.trim(),
         price: Number(v.price) || 0,
@@ -117,6 +122,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
             className="w-full resize-y rounded-[10px] border-[1.5px] border-border-pink px-3.5 py-2.5 text-[13.5px] outline-none focus:border-rose"
           />
         </div>
+        <ImageUploader value={images} onChange={setImages} />
         <div className="grid grid-cols-2 gap-3.5">
           <div>
             <label className="mb-1.5 block text-[12.5px] font-bold">Category</label>

@@ -5,22 +5,36 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useAdminAuthStore } from "@/store/adminAuthStore";
+import { login as apiLogin } from "@/lib/api/auth";
 
-// No backend yet — accepts any well-formed credentials, same stub pattern
-// as the customer login page.
+// Real admin login: authenticates against /v1/auth/login (username may be the
+// admin's email or phone) and only grants access if the account's role is ADMIN.
 export default function AdminLoginPage() {
   const router = useRouter();
   const login = useAdminAuthStore((s) => s.login);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
       toast.error("Enter a username and password");
       return;
     }
-    login();
+    setSubmitting(true);
+    const res = await apiLogin(username.trim(), password);
+    if (!res.success) {
+      setSubmitting(false);
+      toast.error(res.error.message);
+      return;
+    }
+    if (res.data.user.role !== "ADMIN") {
+      setSubmitting(false);
+      toast.error("This account doesn't have admin access");
+      return;
+    }
+    login(res.data.user, res.data.accessToken);
     router.push("/admin");
   }
 
@@ -48,9 +62,10 @@ export default function AdminLoginPage() {
           />
           <button
             type="submit"
-            className="rounded-xl bg-rose py-3 text-[14.5px] font-bold text-white shadow-[0_8px_20px_rgba(217,79,140,0.25)]"
+            disabled={submitting}
+            className="rounded-xl bg-rose py-3 text-[14.5px] font-bold text-white shadow-[0_8px_20px_rgba(217,79,140,0.25)] disabled:opacity-60"
           >
-            Log In
+            {submitting ? "Logging in…" : "Log In"}
           </button>
         </form>
         <p className="text-center text-xs text-strikethrough">Restricted access — store staff only.</p>

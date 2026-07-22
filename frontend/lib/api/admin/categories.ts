@@ -2,6 +2,7 @@ import type { ApiResult, Category } from "@/lib/types";
 import { MOCK_CATEGORIES } from "@/lib/mock/categories";
 import { readProducts } from "@/lib/api/admin/products";
 import { delay } from "@/lib/api/delay";
+import { api, unwrap, USE_MOCKS } from "@/lib/api/client";
 
 const STORAGE_KEY = "zeroplus-admin-categories";
 
@@ -30,6 +31,7 @@ export interface AdminCategory extends Category {
 // GET /v1/admin/categories view — Section 2.2's category table shows each
 // category's product count alongside its own data.
 export async function getAdminCategories(): Promise<ApiResult<AdminCategory[]>> {
+  if (!USE_MOCKS) return unwrap<AdminCategory[]>(api.get("/admin/categories"));
   await delay(150);
   const categories = readCategories();
   const products = readProducts();
@@ -48,6 +50,7 @@ function slugify(name: string) {
 
 // POST /v1/admin/categories — Section 6.2
 export async function createCategory(input: { name: string; imageUrl: string | null }): Promise<ApiResult<Category>> {
+  if (!USE_MOCKS) return unwrap<Category>(api.post("/admin/categories", input));
   await delay(200);
   const categories = readCategories();
   const category: Category = {
@@ -67,6 +70,7 @@ export async function updateCategory(
   id: string,
   input: { name: string; imageUrl: string | null }
 ): Promise<ApiResult<Category>> {
+  if (!USE_MOCKS) return unwrap<Category>(api.patch(`/admin/categories/${id}`, input));
   await delay(200);
   const categories = readCategories();
   const index = categories.findIndex((c) => c.id === id);

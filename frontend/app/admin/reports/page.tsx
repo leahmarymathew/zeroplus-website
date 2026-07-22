@@ -73,11 +73,14 @@ export default function AdminReportsPage() {
     return days.map((d) => ({ label: d.label, height: `${Math.max(4, (d.sum / max) * 100)}%` }));
   }, [range, orders, today]);
 
-  const topProducts = useMemo(() => {
+  // Rank plain products and kits separately — a kit line has kitName, a product
+  // line has productName, and they never overlap.
+  const rankByName = (pick: (item: Order["items"][number]) => string | null) => {
     const byName = new Map<string, { units: number; revenue: number }>();
     for (const order of inRange) {
       for (const item of order.items) {
-        const name = item.kitName ?? item.productName ?? "Unknown";
+        const name = pick(item);
+        if (!name) continue;
         const entry = byName.get(name) ?? { units: 0, revenue: 0 };
         entry.units += item.quantity;
         entry.revenue += item.priceAtPurchase * item.quantity;
@@ -88,10 +91,19 @@ export default function AdminReportsPage() {
       .map(([name, v]) => ({ name, ...v }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
-  }, [inRange]);
+  };
+
+  const topProducts = useMemo(() => rankByName((i) => i.productName), [inRange]);
+  const topKits = useMemo(() => rankByName((i) => i.kitName), [inRange]);
 
   function downloadCsv() {
-    const rows = [["Product", "Units Sold", "Revenue"], ...topProducts.map((p) => [p.name, String(p.units), String(p.revenue)])];
+    const rows = [
+      ["Product", "Units Sold", "Revenue"],
+      ...topProducts.map((p) => [p.name, String(p.units), String(p.revenue)]),
+      [],
+      ["Kit", "Units Sold", "Revenue"],
+      ...topKits.map((k) => [k.name, String(k.units), String(k.revenue)]),
+    ];
     const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -158,28 +170,45 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-admin-border bg-white p-5">
-        <h2 className="mb-3.5 text-[15px] font-bold">Top Products</h2>
-        <table className="w-full border-collapse text-left text-[13px]">
-          <thead>
-            <tr className="border-b border-admin-border text-[12px] font-bold uppercase tracking-wide text-muted-light">
-              <th className="px-2.5 py-2">Product</th>
-              <th className="px-2.5 py-2">Units Sold</th>
-              <th className="px-2.5 py-2">Revenue</th>
-            </tr>
-          </thead>
-          <tbody>
-            {topProducts.map((p) => (
-              <tr key={p.name} className="border-b border-admin-row-border">
-                <td className="px-2.5 py-2 font-bold">{p.name}</td>
-                <td className="px-2.5 py-2 text-muted">{p.units}</td>
-                <td className="px-2.5 py-2 font-bold text-rose">{formatPrice(p.revenue)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {topProducts.length === 0 && <p className="px-2.5 py-6 text-center text-sm text-muted-light">No sales in this date range.</p>}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <TopTable title="Top Products" headLabel="Product" rows={topProducts} />
+        <TopTable title="Top Kits" headLabel="Kit" rows={topKits} />
       </div>
     </AdminShell>
+  );
+}
+
+function TopTable({
+  title,
+  headLabel,
+  rows,
+}: {
+  title: string;
+  headLabel: string;
+  rows: { name: string; units: number; revenue: number }[];
+}) {
+  return (
+    <div className="rounded-2xl border border-admin-border bg-white p-5">
+      <h2 className="mb-3.5 text-[15px] font-bold">{title}</h2>
+      <table className="w-full border-collapse text-left text-[13px]">
+        <thead>
+          <tr className="border-b border-admin-border text-[12px] font-bold uppercase tracking-wide text-muted-light">
+            <th className="px-2.5 py-2">{headLabel}</th>
+            <th className="px-2.5 py-2">Units Sold</th>
+            <th className="px-2.5 py-2">Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((p) => (
+            <tr key={p.name} className="border-b border-admin-row-border">
+              <td className="px-2.5 py-2 font-bold">{p.name}</td>
+              <td className="px-2.5 py-2 text-muted">{p.units}</td>
+              <td className="px-2.5 py-2 font-bold text-rose">{formatPrice(p.revenue)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows.length === 0 && <p className="px-2.5 py-6 text-center text-sm text-muted-light">No sales in this date range.</p>}
+    </div>
   );
 }

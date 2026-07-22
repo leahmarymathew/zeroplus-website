@@ -1,12 +1,14 @@
 import type { ApiResult, Review } from "@/lib/types";
 import { MOCK_REVIEWS } from "@/lib/mock/reviews";
 import { delay } from "./delay";
+import { api, unwrap, USE_MOCKS } from "./client";
 
 // module-level so newly-submitted reviews persist for the session (not across reloads)
 const reviews = [...MOCK_REVIEWS];
 
 // GET /v1/products/:id/reviews — Section 6.2
 export async function getReviews(productId: string): Promise<ApiResult<Array<Review & { userName: string }>>> {
+  if (!USE_MOCKS) return unwrap<Array<Review & { userName: string }>>(api.get(`/products/${productId}/reviews`));
   await delay(150);
   return { success: true, data: reviews.filter((r) => r.productId === productId) };
 }
@@ -18,6 +20,13 @@ export async function submitReview(
   productId: string,
   input: { rating: number; comment: string | null; userName: string }
 ): Promise<ApiResult<Review & { userName: string }>> {
+  if (!USE_MOCKS) {
+    // The backend derives the author from the JWT and gates on a delivered
+    // order; only rating + comment are sent.
+    return unwrap<Review & { userName: string }>(
+      api.post(`/products/${productId}/reviews`, { rating: input.rating, comment: input.comment })
+    );
+  }
   await delay(200);
   const newReview: Review & { userName: string } = {
     id: `rev_${Date.now()}`,

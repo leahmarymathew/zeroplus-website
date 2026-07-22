@@ -1,6 +1,26 @@
 import type { ApiResult, Kit, KitSlot } from "@/lib/types";
 import { MOCK_KITS } from "@/lib/mock/kits";
 import { delay } from "@/lib/api/delay";
+import { api, unwrap, USE_MOCKS } from "@/lib/api/client";
+
+// The backend kit schema takes only { label, options:[{productVariantId,
+// priceAdjustment?}] }; productName/variantLabel are display-only and dropped.
+function toKitPayload(input: KitFormInput) {
+  return {
+    name: input.name,
+    description: input.description,
+    basePrice: input.basePrice,
+    imageUrl: input.imageUrl,
+    isActive: input.isActive,
+    slots: input.slots.map((slot) => ({
+      label: slot.label,
+      options: slot.options.map((o) => ({
+        productVariantId: o.productVariantId,
+        priceAdjustment: o.priceAdjustment,
+      })),
+    })),
+  };
+}
 
 const STORAGE_KEY = "zeroplus-admin-kits";
 
@@ -25,11 +45,13 @@ function writeKits(kits: Kit[]) {
 // GET /v1/admin/kits view — Section 2.2 (includes inactive kits, unlike
 // the public GET /v1/kits)
 export async function getAdminKits(): Promise<ApiResult<Kit[]>> {
+  if (!USE_MOCKS) return unwrap<Kit[]>(api.get("/admin/kits"));
   await delay(150);
   return { success: true, data: readKits() };
 }
 
 export async function getAdminKit(id: string): Promise<ApiResult<Kit>> {
+  if (!USE_MOCKS) return unwrap<Kit>(api.get(`/admin/kits/${id}`));
   await delay(150);
   const kit = readKits().find((k) => k.id === id);
   if (!kit) {
@@ -70,6 +92,7 @@ function buildSlots(kitId: string, slots: KitFormInput["slots"]): KitSlot[] {
 
 // POST /v1/admin/kits — Section 6.2
 export async function createKit(input: KitFormInput): Promise<ApiResult<Kit>> {
+  if (!USE_MOCKS) return unwrap<Kit>(api.post("/admin/kits", toKitPayload(input)));
   await delay(200);
   const kits = readKits();
   const id = `kit_${crypto.randomUUID().slice(0, 8)}`;
@@ -89,6 +112,7 @@ export async function createKit(input: KitFormInput): Promise<ApiResult<Kit>> {
 
 // PATCH /v1/admin/kits/:id — Section 6.2 (replaces slots/options wholesale)
 export async function updateKit(id: string, input: KitFormInput): Promise<ApiResult<Kit>> {
+  if (!USE_MOCKS) return unwrap<Kit>(api.patch(`/admin/kits/${id}`, toKitPayload(input)));
   await delay(200);
   const kits = readKits();
   const index = kits.findIndex((k) => k.id === id);
@@ -108,6 +132,7 @@ export async function updateKit(id: string, input: KitFormInput): Promise<ApiRes
 
 // DELETE /v1/admin/kits/:id — Section 6.2
 export async function deleteKit(id: string): Promise<ApiResult<{ id: string }>> {
+  if (!USE_MOCKS) return unwrap<{ id: string }>(api.delete(`/admin/kits/${id}`));
   await delay(150);
   writeKits(readKits().filter((k) => k.id !== id));
   return { success: true, data: { id } };
@@ -115,6 +140,7 @@ export async function deleteKit(id: string): Promise<ApiResult<{ id: string }>> 
 
 // Convenience for the Kits list's active/inactive toggle switch
 export async function setKitActive(id: string, isActive: boolean): Promise<ApiResult<Kit>> {
+  if (!USE_MOCKS) return unwrap<Kit>(api.patch(`/admin/kits/${id}/active`, { isActive }));
   await delay(150);
   const kits = readKits();
   const index = kits.findIndex((k) => k.id === id);

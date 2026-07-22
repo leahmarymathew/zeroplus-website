@@ -2,6 +2,7 @@ import type { ApiResult, Product } from "@/lib/types";
 import { MOCK_PRODUCTS } from "@/lib/mock/products";
 import { getDisplayVariant } from "@/lib/format";
 import { delay } from "./delay";
+import { api, unwrap, USE_MOCKS } from "./client";
 
 export type ProductSort = "popular" | "price_asc" | "price_desc" | "newest";
 
@@ -19,6 +20,7 @@ export interface GetProductsParams {
 // GET /v1/products — Section 6.2/6.3. `q` also powers search, `onSale`
 // powers Best Deals; no separate endpoints for either.
 export async function getProducts(params: GetProductsParams = {}): Promise<ApiResult<Product[]>> {
+  if (!USE_MOCKS) return unwrap<Product[]>(api.get("/products", { params }));
   await delay();
 
   let results = MOCK_PRODUCTS.filter((p) => p.isActive);
@@ -74,6 +76,7 @@ export async function getProducts(params: GetProductsParams = {}): Promise<ApiRe
 
 // GET /v1/products/:slug — Section 6.3
 export async function getProduct(slug: string): Promise<ApiResult<Product>> {
+  if (!USE_MOCKS) return unwrap<Product>(api.get(`/products/${slug}`));
   await delay();
   const product = MOCK_PRODUCTS.find((p) => p.slug === slug && p.isActive);
   if (!product) {
@@ -82,15 +85,26 @@ export async function getProduct(slug: string): Promise<ApiResult<Product>> {
   return { success: true, data: product };
 }
 
-// No dedicated endpoint in Section 6.2 — the wishlist page resolves its
-// stored productIds (Section 5's Wishlist model) against the product list.
+// No dedicated endpoint in Section 6.2 — the wishlist page resolves its stored
+// productIds against the product list, filtered client-side.
 export async function getProductsByIds(ids: string[]): Promise<ApiResult<Product[]>> {
+  if (!USE_MOCKS) {
+    const res = await getProducts({ limit: 50 });
+    if (!res.success) return res;
+    return { success: true, data: res.data.filter((p) => ids.includes(p.id)) };
+  }
   await delay(150);
   const found = MOCK_PRODUCTS.filter((p) => ids.includes(p.id) && p.isActive);
   return { success: true, data: found };
 }
 
 export async function getRelatedProducts(product: Product, limit = 4): Promise<Product[]> {
+  if (!USE_MOCKS) {
+    // Reuse the list endpoint: same category, drop the current product.
+    const res = await getProducts({ category: product.categoryId, limit: limit + 1 });
+    if (!res.success) return [];
+    return res.data.filter((p) => p.id !== product.id).slice(0, limit);
+  }
   await delay(150);
   return MOCK_PRODUCTS.filter((p) => p.isActive && p.categoryId === product.categoryId && p.id !== product.id).slice(
     0,

@@ -38,8 +38,11 @@ function redirectUrl(orderId: string, guestToken?: string | null) {
 export async function initiatePayment(params: InitiateParams): Promise<{ redirectUrl: string }> {
   if (!config.phonepe.enabled) {
     // Mock: bounce through a backend endpoint that marks the payment paid.
+    // Carry the guest token so the mock-pay redirect can hand it to the
+    // confirmation page (guests have no JWT to fetch their order otherwise).
+    const q = params.guestToken ? `?token=${encodeURIComponent(params.guestToken)}` : "";
     return {
-      redirectUrl: `${config.backendPublicUrl}/v1/payments/mock-pay/${params.merchantTransactionId}`,
+      redirectUrl: `${config.backendPublicUrl}/v1/payments/mock-pay/${params.merchantTransactionId}${q}`,
     };
   }
 
