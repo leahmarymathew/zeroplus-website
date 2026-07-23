@@ -31,7 +31,12 @@ export async function login(identifier: string, password: string): Promise<ApiRe
   if (!USE_MOCKS) return unwrap<AuthSession>(api.post("/auth/login", { identifier, password }));
   await delay(200);
   const isEmail = identifier.includes("@");
-  return mockSession(mockUser({ email: isEmail ? identifier : null, phone: isEmail ? "9800000000" : identifier }));
+  // Mock mode has no real backend to check roles against, so /admin/login's
+  // ADMIN gate would otherwise reject every login. Any identifier containing
+  // "admin" (e.g. admin@zeroplus.com) mocks an admin account so the admin UI
+  // is reachable without a backend, matching the customer flow's no-backend story.
+  const role = identifier.toLowerCase().includes("admin") ? "ADMIN" : "CUSTOMER";
+  return mockSession(mockUser({ email: isEmail ? identifier : null, phone: isEmail ? "9800000000" : identifier, role }));
 }
 
 export interface RegisterInput {

@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { Header } from "@/components/layout/Header";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { OtpInput } from "@/components/ui/OtpInput";
 import { forgotPassword } from "@/lib/api/auth";
 
 // Section 6.4: forgot-password reuses the send/verify OTP pair. The reset code
@@ -73,20 +74,8 @@ export default function ForgotPasswordPage() {
           ) : (
             <>
               <p className="mb-3 text-[12.5px] text-muted">Enter the 6-digit code sent to your number.</p>
-              <div className="mb-4 flex gap-2">
-                {otpDigits.map((d, i) => (
-                  <input
-                    key={i}
-                    value={d}
-                    onChange={(e) => {
-                      const next = [...otpDigits];
-                      next[i] = e.target.value.replace(/\D/g, "").slice(0, 1);
-                      setOtpDigits(next);
-                    }}
-                    maxLength={1}
-                    className="h-12 w-full rounded-[10px] border-[1.5px] border-border-pink text-center text-lg font-bold outline-none"
-                  />
-                ))}
+              <div className="mb-4">
+                <OtpInput digits={otpDigits} onChange={setOtpDigits} />
               </div>
               <Button variant="primary" className="w-full" onClick={handleVerify}>
                 Verify &amp; Continue

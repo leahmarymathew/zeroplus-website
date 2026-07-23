@@ -84,7 +84,7 @@ export default function AdminCategoriesPage() {
           </div>
         </form>
 
-        <div className="overflow-hidden rounded-2xl border border-admin-border bg-white">
+        <div className="overflow-hidden overflow-x-auto rounded-2xl border border-admin-border bg-white">
           <table className="w-full border-collapse text-left text-[13px]">
             <thead>
               <tr className="border-b border-admin-border text-[12px] font-bold uppercase tracking-wide text-muted-light">

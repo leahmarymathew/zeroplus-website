@@ -17,12 +17,15 @@ interface ProductCardInteractiveProps {
 // data) can render interactive cards without becoming client components
 // themselves.
 export function ProductCardInteractive({ product, showAddToCart = false, className }: ProductCardInteractiveProps) {
-  const isWishlisted = useWishlistStore((s) => s.isWishlisted(product.id));
+  // Gated on `hydrated` so the client's first render matches the SSR HTML
+  // (always "not wishlisted") before the persisted store loads.
+  const isWishlisted = useWishlistStore((s) => s.hydrated && s.isWishlisted(product.id));
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const addItem = useCartStore((s) => s.addItem);
 
   function handleAddToCart() {
     const variant = getDisplayVariant(product);
+    if (variant.stockQty <= 0) return;
     addItem({
       id: crypto.randomUUID(),
       sessionId: null,

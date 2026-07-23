@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Poppins, Nunito } from "next/font/google";
+import { Fraunces, Nunito } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
-const poppins = Poppins({
-  variable: "--font-poppins",
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
   weight: ["600", "700", "800"],
 });
@@ -30,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${poppins.variable} ${nunito.variable} h-full`}>
+    <html lang="en" className={`${fraunces.variable} ${nunito.variable} h-full`}>
       <body className="min-h-full flex flex-col antialiased">
         {children}
         <Toaster position="top-center" />

@@ -13,7 +13,9 @@ import { useWishlistStore } from "@/store/wishlistStore";
 export function ProductPurchasePanel({ product }: { product: Product }) {
   const [variantId, setVariantId] = useState(product.variants[0]?.id);
   const variant = product.variants.find((v) => v.id === variantId) ?? product.variants[0];
-  const isWishlisted = useWishlistStore((s) => s.isWishlisted(product.id));
+  // Gated on `hydrated` so the client's first render matches the SSR HTML
+  // (always "not wishlisted") before the persisted store loads.
+  const isWishlisted = useWishlistStore((s) => s.hydrated && s.isWishlisted(product.id));
   const toggleWishlist = useWishlistStore((s) => s.toggle);
   const addItem = useCartStore((s) => s.addItem);
 

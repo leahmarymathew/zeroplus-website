@@ -10,6 +10,7 @@ export interface ProductCardData {
   compareAtPrice?: number | null;
   rating: number;
   reviewCount: number;
+  inStock: boolean;
 }
 
 interface ProductCardProps {
@@ -70,8 +71,15 @@ function WishlistButton({ active, onClick }: { active?: boolean; onClick?: () =>
 export function ProductCard({ product, isWishlisted, onToggleWishlist, onAddToCart, className = "" }: ProductCardProps) {
   const body = (
     <>
-      <div className="mb-2.5 h-[110px]">
+      <div className="relative mb-2.5 h-[110px]">
         <ProductImage imageUrl={product.imageUrl} />
+        {!product.inStock && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70">
+            <span className="rounded-full bg-ink px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+              Out of Stock
+            </span>
+          </div>
+        )}
       </div>
       <RatingRow rating={product.rating} reviewCount={product.reviewCount} />
       <div className="mb-1 line-clamp-1 text-sm font-bold text-ink">{product.name}</div>
@@ -91,9 +99,10 @@ export function ProductCard({ product, isWishlisted, onToggleWishlist, onAddToCa
         <button
           type="button"
           onClick={onAddToCart}
-          className="mt-2.5 w-full rounded-[10px] bg-rose py-[9px] text-[13px] font-bold text-white"
+          disabled={!product.inStock}
+          className="mt-2.5 w-full rounded-[10px] border-[1.5px] border-rose bg-white py-[9px] text-[13px] font-bold text-rose transition-colors hover:bg-rose hover:text-white disabled:cursor-not-allowed disabled:border-disabled-bg disabled:bg-disabled-bg disabled:text-disabled-text disabled:hover:bg-disabled-bg disabled:hover:text-disabled-text"
         >
-          Add to Cart
+          {product.inStock ? "Add to Cart" : "Out of Stock"}
         </button>
       </div>
     );

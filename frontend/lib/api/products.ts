@@ -89,9 +89,20 @@ export async function getProduct(slug: string): Promise<ApiResult<Product>> {
 // productIds against the product list, filtered client-side.
 export async function getProductsByIds(ids: string[]): Promise<ApiResult<Product[]>> {
   if (!USE_MOCKS) {
-    const res = await getProducts({ limit: 50 });
-    if (!res.success) return res;
-    return { success: true, data: res.data.filter((p) => ids.includes(p.id)) };
+    const remaining = new Set(ids);
+    const found: Product[] = [];
+    let page = 1;
+    const limit = 50;
+    while (remaining.size > 0) {
+      const res = await getProducts({ page, limit });
+      if (!res.success) return res;
+      for (const p of res.data) {
+        if (remaining.delete(p.id)) found.push(p);
+      }
+      if (page >= (res.pagination?.totalPages ?? page)) break;
+      page++;
+    }
+    return { success: true, data: found };
   }
   await delay(150);
   const found = MOCK_PRODUCTS.filter((p) => ids.includes(p.id) && p.isActive);

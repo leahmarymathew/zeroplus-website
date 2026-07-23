@@ -7,23 +7,25 @@
   than raw hex values.
 */
 @theme {
-  --font-heading: var(--font-poppins), sans-serif;
+  --font-heading: var(--font-fraunces), serif;
   --font-body: var(--font-nunito), sans-serif;
 
   /* Core palette */
   --color-rose: #d94f8c;
   --color-rose-dark: #b83a72;
-  --color-surface-pink-light: #fdeaf3;
-  --color-surface-pink: #fce4f0;
-  --color-input-fill: #faf3f8;
+  /* Toned down from a pink tint to a neutral warm-gray (Nykaa reference:
+     pink is reserved for buttons/active accents, not backgrounds/borders). */
+  --color-surface-pink-light: #f7f5f6;
+  --color-surface-pink: #efebec;
+  --color-input-fill: #f7f5f6;
   --color-page: #fffdfc;
   --color-ink: #3a2e3f;
   --color-muted: #6b5d70;
   --color-muted-light: #8a7a90;
-  --color-placeholder-icon: #b98cae;
-  --color-border-pink: #eeb9d3;
-  --color-border-pink-light: #f5e3ee;
-  --color-border-secondary: #f3c8db;
+  --color-placeholder-icon: #a99cad;
+  --color-border-pink: #e3dde0;
+  --color-border-pink-light: #eee9eb;
+  --color-border-secondary: #e6e0e3;
   --color-info: #1b9ac7;
   --color-whatsapp: #25d366;
 
@@ -52,26 +54,31 @@
   --color-admin-row-border: #f4eef1;
 }
 
-body {
-  margin: 0;
-  background: var(--color-page);
-  color: var(--color-ink);
-  font-family: var(--font-body);
-}
+@layer base {
+  body {
+    margin: 0;
+    background: var(--color-page);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+  }
 
-h1,
-h2,
-h3 {
-  font-family: var(--font-heading);
-}
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+  }
 
-a {
-  color: var(--color-rose);
-  text-decoration: none;
-}
+  /* Plain links default to neutral ink (Nykaa-style: pink is for buttons and
+     specific accents, not every link). Components that want a pink link use
+     text-rose explicitly. */
+  a {
+    color: var(--color-ink);
+    text-decoration: none;
+  }
 
-a:hover {
-  color: var(--color-rose-dark);
+  a:hover {
+    color: var(--color-rose);
+  }
 }
 
 ::-webkit-scrollbar {
