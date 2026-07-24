@@ -42,8 +42,9 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: "zeroplus-cart",
-      onRehydrateStorage: () => (state) => {
-        if (state) state.hydrated = true;
+      partialize: (state) => ({ items: state.items }),
+      onRehydrateStorage: () => () => {
+        useCartStore.setState({ hydrated: true });
       },
     }
   )

@@ -43,6 +43,8 @@ export function OtpInput({ digits, onChange }: OtpInputProps) {
       {digits.map((d, i) => (
         <input
           key={i}
+          aria-label={`OTP digit ${i + 1}`}
+          autoComplete={i === 0 ? "one-time-code" : "off"}
           ref={(el) => {
             inputRefs.current[i] = el;
           }}

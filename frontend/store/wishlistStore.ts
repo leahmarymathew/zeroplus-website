@@ -29,8 +29,9 @@ export const useWishlistStore = create<WishlistState>()(
     }),
     {
       name: "zeroplus-wishlist",
-      onRehydrateStorage: () => (state) => {
-        if (state) state.hydrated = true;
+      partialize: (state) => ({ productIds: state.productIds }),
+      onRehydrateStorage: () => () => {
+        useWishlistStore.setState({ hydrated: true });
       },
     }
   )
