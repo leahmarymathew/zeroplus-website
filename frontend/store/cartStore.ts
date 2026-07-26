@@ -4,16 +4,21 @@ import type { CartItem } from "@/lib/types";
 
 interface CartState {
   items: CartItem[];
+  hydrated: boolean;
   addItem: (item: CartItem) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clear: () => void;
 }
 
+// `hydrated` starts false on both server and the client's first render so
+// the SSR HTML always shows the empty-cart state; it flips true once persist
+// reads localStorage, after hydration. See store/wishlistStore.ts.
 export const useCartStore = create<CartState>()(
   persist(
     (set) => ({
       items: [],
+      hydrated: false,
       addItem: (item) =>
         set((state) => {
           const existing = state.items.find(
@@ -35,9 +40,20 @@ export const useCartStore = create<CartState>()(
         })),
       clear: () => set({ items: [] }),
     }),
-    { name: "zeroplus-cart" }
+    {
+      name: "zeroplus-cart",
+      partialize: (state) => ({ items: state.items }),
+      onRehydrateStorage: () => () => {
+        useCartStore.setState({ hydrated: true });
+      },
+    }
   )
 );
+
+// Stable reference for "no items yet" reads (pre-hydration). A `[]` literal
+// inline in a selector would return a new array every call, which breaks
+// useSyncExternalStore's reference-equality check and risks a render loop.
+export const EMPTY_CART_ITEMS: CartItem[] = [];
 
 export const selectCartCount = (state: CartState) =>
   state.items.reduce((sum, i) => sum + i.quantity, 0);

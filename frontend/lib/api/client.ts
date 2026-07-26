@@ -29,7 +29,10 @@ api.interceptors.request.use((config) => {
   const token = isAdminPath(config.url)
     ? useAdminAuthStore.getState().accessToken
     : useAuthStore.getState().accessToken;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 

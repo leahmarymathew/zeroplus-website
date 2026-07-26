@@ -1,14 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useCartStore, selectCartSubtotal } from "@/store/cartStore";
+import { useCartStore, selectCartSubtotal, EMPTY_CART_ITEMS } from "@/store/cartStore";
 import { FREE_DELIVERY_THRESHOLD, SHIPPING_FEE } from "@/lib/api/orders";
 import { formatPrice } from "@/lib/format";
 import { LinkButton } from "@/components/ui/Button";
 
 export default function CartPage() {
-  const items = useCartStore((s) => s.items);
-  const subtotal = useCartStore(selectCartSubtotal);
+  // Gated on `hydrated` so the SSR/first-client-render (always empty) matches
+  // before the persisted cart loads — otherwise a non-empty cart causes a
+  // full-subtree hydration mismatch between the empty state and the item list.
+  const hydrated = useCartStore((s) => s.hydrated);
+  const items = useCartStore((s) => (hydrated ? s.items : EMPTY_CART_ITEMS));
+  const subtotal = useCartStore((s) => (hydrated ? selectCartSubtotal(s) : 0));
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
 

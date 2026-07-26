@@ -29,5 +29,6 @@ export function toProductCardData(product: Product) {
     compareAtPrice: variant.compareAtPrice,
     rating: product.rating,
     reviewCount: product.reviewCount,
+    inStock: variant.stockQty > 0,
   };
 }

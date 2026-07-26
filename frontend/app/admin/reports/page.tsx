@@ -188,7 +188,7 @@ function TopTable({
   rows: { name: string; units: number; revenue: number }[];
 }) {
   return (
-    <div className="rounded-2xl border border-admin-border bg-white p-5">
+    <div className="overflow-x-auto rounded-2xl border border-admin-border bg-white p-5">
       <h2 className="mb-3.5 text-[15px] font-bold">{title}</h2>
       <table className="w-full border-collapse text-left text-[13px]">
         <thead>

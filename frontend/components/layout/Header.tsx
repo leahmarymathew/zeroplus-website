@@ -45,8 +45,10 @@ export function Header({ variant = "full", rightSlot }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const cartCount = useCartStore(selectCartCount);
-  const wishCount = useWishlistStore(selectWishlistCount);
+  // Gated on `hydrated` so the SSR/first-client-render badge count (0, i.e.
+  // hidden) matches until the persisted store loads.
+  const cartCount = useCartStore((s) => (s.hydrated ? selectCartCount(s) : 0));
+  const wishCount = useWishlistStore((s) => (s.hydrated ? selectWishlistCount(s) : 0));
 
   function handleSearch(e: FormEvent) {
     e.preventDefault();
@@ -59,7 +61,7 @@ export function Header({ variant = "full", rightSlot }: HeaderProps) {
       <header className="sticky top-0 z-30 border-b border-border-pink-light bg-page">
         <div className="mx-auto flex max-w-[900px] items-center justify-between gap-3.5 px-4 py-3.5 sm:px-8">
           <Link href="/" className="flex flex-none items-center">
-            <Image src="/logo.png" alt="Zeroplus" width={1628} height={1236} priority className="h-9 w-auto" />
+            <Image src="/logo.png" alt="Zeroplus" width={1478} height={719} priority className="h-12 w-auto" />
           </Link>
           <nav className="flex items-center gap-4.5 text-[13.5px] font-bold">
             {CONTENT_NAV_LINKS.map((link) => (
@@ -81,7 +83,7 @@ export function Header({ variant = "full", rightSlot }: HeaderProps) {
       <header className="sticky top-0 z-30 border-b border-border-pink-light bg-page">
         <div className="mx-auto flex max-w-[900px] items-center justify-between gap-3.5 px-4 py-3.5 sm:px-8">
           <Link href="/" className="flex flex-none items-center">
-            <Image src="/logo.png" alt="Zeroplus" width={1628} height={1236} priority className="h-9 w-auto" />
+            <Image src="/logo.png" alt="Zeroplus" width={1478} height={719} priority className="h-12 w-auto" />
           </Link>
           <div className="flex items-center gap-3.5">
             <Link href="/wishlist" aria-label="Wishlist" className="flex text-ink">
@@ -98,7 +100,7 @@ export function Header({ variant = "full", rightSlot }: HeaderProps) {
     <header className="sticky top-0 z-30 border-b border-border-pink-light bg-page shadow-[0_2px_12px_rgba(217,79,140,0.05)]">
       <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3 sm:px-8">
         <Link href="/" className="flex flex-none items-center gap-2">
-          <Image src="/logo.png" alt="Zeroplus" width={1628} height={1236} priority className="h-10 w-auto" />
+          <Image src="/logo.png" alt="Zeroplus" width={1478} height={719} priority className="h-14 w-auto" />
         </Link>
 
         <form onSubmit={handleSearch} className="flex min-w-[160px] flex-1 items-center gap-2 rounded-full border-[1.5px] border-border-pink bg-input-fill px-4 py-[9px] text-muted-light">

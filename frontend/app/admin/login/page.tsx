@@ -42,7 +42,7 @@ export default function AdminLoginPage() {
     <div className="flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-[380px] rounded-[20px] border border-admin-border bg-white p-7 shadow-[0_8px_30px_rgba(0,0,0,0.05)] sm:p-9">
         <div className="mb-6 text-center">
-          <Image src="/logo.png" alt="Zeroplus" width={1628} height={1236} className="mx-auto mb-2.5 h-10 w-auto" />
+          <Image src="/logo.png" alt="Zeroplus" width={1478} height={719} className="mx-auto mb-2.5 h-14 w-auto" />
           <div className="text-xs font-extrabold tracking-wider text-muted-light">ADMIN PANEL</div>
         </div>
         <form onSubmit={handleSubmit} className="mb-4.5 flex flex-col gap-3">

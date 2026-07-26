@@ -14,7 +14,7 @@ export function UrgencyWidgets({ seed }: { seed: string }) {
     // but vary across products.
     let h = 0;
     for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-    setStats({ sold: 8 + (h % 40), viewing: 3 + ((h >> 3) % 15) });
+    setStats({ sold: 8 + (h % 40), viewing: 3 + ((h >>> 3) % 15) });
   }, [seed]);
 
   if (!stats) return null;

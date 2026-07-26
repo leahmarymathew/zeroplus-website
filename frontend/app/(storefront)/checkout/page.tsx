@@ -9,7 +9,8 @@ import toast from "react-hot-toast";
 import { Header } from "@/components/layout/Header";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { useCartStore, selectCartSubtotal } from "@/store/cartStore";
+import { OtpInput } from "@/components/ui/OtpInput";
+import { useCartStore, selectCartSubtotal, EMPTY_CART_ITEMS } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
 import { createOrder, COD_FEE, FREE_DELIVERY_THRESHOLD, SHIPPING_FEE } from "@/lib/api/orders";
 import { sendOtp, verifyOtp } from "@/lib/api/otp";
@@ -29,8 +30,11 @@ type AddressForm = z.infer<typeof addressSchema>;
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const items = useCartStore((s) => s.items);
-  const subtotal = useCartStore(selectCartSubtotal);
+  // Gated on `hydrated` so the SSR/first-client-render matches (see
+  // app/(storefront)/(browse)/cart/page.tsx for the same pattern).
+  const cartHydrated = useCartStore((s) => s.hydrated);
+  const items = useCartStore((s) => (cartHydrated ? s.items : EMPTY_CART_ITEMS));
+  const subtotal = useCartStore((s) => (cartHydrated ? selectCartSubtotal(s) : 0));
   const clearCart = useCartStore((s) => s.clear);
   const user = useAuthStore((s) => s.user);
 
@@ -200,20 +204,8 @@ export default function CheckoutPage() {
                     ) : (
                       <>
                         <p className="mb-2.5 text-[12.5px] text-muted">Enter the 6-digit code sent to your number.</p>
-                        <div className="mb-3 flex gap-2">
-                          {otpDigits.map((d, i) => (
-                            <input
-                              key={i}
-                              value={d}
-                              onChange={(e) => {
-                                const next = [...otpDigits];
-                                next[i] = e.target.value.replace(/\D/g, "").slice(0, 1);
-                                setOtpDigits(next);
-                              }}
-                              maxLength={1}
-                              className="h-12 w-full rounded-[10px] border-[1.5px] border-border-pink text-center text-lg font-bold outline-none"
-                            />
-                          ))}
+                        <div className="mb-3">
+                          <OtpInput digits={otpDigits} onChange={setOtpDigits} />
                         </div>
                         <div className="flex items-center gap-3.5">
                           <button type="button" onClick={handleVerifyOtp} className="rounded-full bg-rose px-5 py-2 text-[13px] font-bold text-white">
