@@ -43,8 +43,15 @@ export const useCartStore = create<CartState>()(
     {
       name: "zeroplus-cart",
       partialize: (state) => ({ items: state.items }),
-      onRehydrateStorage: () => () => {
-        useCartStore.setState({ hydrated: true });
+      // Mutate the passed-in `state` directly rather than calling
+      // `useCartStore.setState(...)` via closure — persist can resolve
+      // rehydration before the `const useCartStore = create(...)` assignment
+      // finishes, and referencing the outer binding then throws
+      // "Cannot access 'useCartStore' before initialization", silently
+      // preventing `hydrated` from ever flipping true. Same pattern as
+      // store/authStore.ts.
+      onRehydrateStorage: () => (state) => {
+        if (state) state.hydrated = true;
       },
     }
   )
