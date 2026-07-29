@@ -29,6 +29,7 @@ const productSchema = z.object({
   certifications: z.array(z.string()).optional(),
   ownerHighlight: z.string().max(60).nullable().optional(),
   isActive: z.boolean().optional(),
+  videoUrl: z.string().url().nullable().optional(),
   variants: z.array(variantSchema).min(1),
   images: z.array(z.object({ url: z.string().url(), sortOrder: z.number().int().optional() })).optional(),
 });
@@ -162,7 +163,13 @@ adminRouter.get("/banners", async (_req, res) => {
 });
 adminRouter.post(
   "/banners",
-  validate(z.object({ title: z.string().min(1), imageUrl: z.string().url().nullable().optional() })),
+  validate(
+    z.object({
+      title: z.string().min(1),
+      imageUrl: z.string().url().nullable().optional(),
+      videoUrl: z.string().url().nullable().optional(),
+    }),
+  ),
   async (req, res) => {
     ok(res, await admin.createBanner(req.body), undefined, 201);
   },
@@ -173,6 +180,7 @@ adminRouter.patch(
     z.object({
       title: z.string().min(1).optional(),
       imageUrl: z.string().url().nullable().optional(),
+      videoUrl: z.string().url().nullable().optional(),
       status: z.enum(["ACTIVE", "SCHEDULED"]).optional(),
     }),
   ),

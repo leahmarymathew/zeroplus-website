@@ -103,6 +103,16 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </div>
       </div>
 
+      {product.videoUrl && (
+        <section className="mt-10">
+          <h2 className="mb-4 text-xl font-bold">Product Video</h2>
+          <div className="max-w-[600px] overflow-hidden rounded-[18px] bg-black">
+            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+            <video src={product.videoUrl} controls className="w-full" />
+          </div>
+        </section>
+      )}
+
       <ProductReviews productId={product.id} initialReviews={reviews} />
 
       {related.length > 0 && (

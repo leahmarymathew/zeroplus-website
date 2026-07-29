@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { createProduct, updateProduct } from "@/lib/api/admin/products";
 import { ImageUploader } from "@/components/admin/ImageUploader";
+import { VideoUploader } from "@/components/admin/VideoUploader";
 import type { Category, Product } from "@/lib/types";
 
 const CERT_OPTIONS = ["Dermatologically Tested", "Hypoallergenic", "BPA Free", "Cruelty Free", "Fragrance Free"];
@@ -41,6 +42,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
   const [images, setImages] = useState<string[]>(
     [...(product?.images ?? [])].sort((a, b) => a.sortOrder - b.sortOrder).map((img) => img.url)
   );
+  const [videoUrl, setVideoUrl] = useState<string | null>(product?.videoUrl ?? null);
   const [saving, setSaving] = useState(false);
 
   function toggleCert(cert: string) {
@@ -82,6 +84,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
       certifications: certifications.size > 0 ? Array.from(certifications) : null,
       ownerHighlight: ownerHighlight.trim() || null,
       isActive: product?.isActive ?? true,
+      videoUrl,
       images: images.map((url, i) => ({ url, sortOrder: i })),
       variants: variants.map((v) => ({
         label: v.label.trim(),
@@ -123,6 +126,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
           />
         </div>
         <ImageUploader value={images} onChange={setImages} />
+        <VideoUploader value={videoUrl} onChange={setVideoUrl} />
         <div className="grid grid-cols-2 gap-3.5">
           <div>
             <label className="mb-1.5 block text-[12.5px] font-bold">Category</label>
