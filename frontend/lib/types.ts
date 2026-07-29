@@ -45,6 +45,8 @@ export interface Product {
   certifications: string[] | null;
   ownerHighlight: string | null;
   isActive: boolean;
+  // Optional single demo/unboxing clip — not every product has one.
+  videoUrl: string | null;
   images: ProductImage[];
   variants: ProductVariant[];
   rating: number;
@@ -174,6 +176,20 @@ export interface Wishlist {
   userId: string;
   productId: string;
   createdAt: string;
+}
+
+// Homepage hero slide — a slide is either a still image or a short video,
+// not both; videoUrl takes precedence over imageUrl when both are set.
+export type BannerStatus = "ACTIVE" | "SCHEDULED";
+
+export interface Banner {
+  id: string;
+  slotLabel: string;
+  title: string;
+  imageUrl: string | null;
+  videoUrl: string | null;
+  status: BannerStatus;
+  sortOrder: number;
 }
 
 export type PaymentTxnStatus = "CREATED" | "PAID" | "FAILED";
