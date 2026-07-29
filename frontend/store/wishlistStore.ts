@@ -30,8 +30,11 @@ export const useWishlistStore = create<WishlistState>()(
     {
       name: "zeroplus-wishlist",
       partialize: (state) => ({ productIds: state.productIds }),
-      onRehydrateStorage: () => () => {
-        useWishlistStore.setState({ hydrated: true });
+      // Mutate the passed-in `state` directly rather than calling
+      // `useWishlistStore.setState(...)` via closure — see cartStore.ts for
+      // why the closure form silently breaks hydration here.
+      onRehydrateStorage: () => (state) => {
+        if (state) state.hydrated = true;
       },
     }
   )
