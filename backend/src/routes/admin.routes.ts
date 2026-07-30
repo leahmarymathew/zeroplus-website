@@ -132,6 +132,10 @@ adminRouter.get("/orders", validate(adminOrdersQuery, "query"), async (_req, res
   ok(res, items, paginate(q.page, q.limit, total));
 });
 
+adminRouter.get("/orders/:id", async (req, res) => {
+  ok(res, await admin.getAdminOrder(String(req.params.id)));
+});
+
 const statusSchema = z.object({
   status: z.enum(["PLACED", "CONFIRMED", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED"]),
   trackingNumber: z.string().nullable().optional(),

@@ -46,6 +46,22 @@ export async function addBanner(title: string): Promise<ApiResult<Banner>> {
   return { success: true, data: banner };
 }
 
+export async function updateBanner(
+  id: string,
+  patch: { title?: string; imageUrl?: string | null; status?: Banner["status"] }
+): Promise<ApiResult<Banner>> {
+  if (!USE_MOCKS) return unwrap<Banner>(api.patch(`/admin/banners/${id}`, patch));
+  await delay(150);
+  const banners = readBanners();
+  const idx = banners.findIndex((b) => b.id === id);
+  if (idx === -1) {
+    return { success: false, error: { code: "NOT_FOUND", message: "Banner not found" } };
+  }
+  banners[idx] = { ...banners[idx], ...patch };
+  writeBanners(banners);
+  return { success: true, data: banners[idx] };
+}
+
 export async function removeBanner(id: string): Promise<ApiResult<{ id: string }>> {
   if (!USE_MOCKS) return unwrap<{ id: string }>(api.delete(`/admin/banners/${id}`));
   await delay(150);

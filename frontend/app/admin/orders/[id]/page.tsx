@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { getOrder, updateOrderStatus } from "@/lib/api/orders";
+import { getAdminOrder, updateOrderStatus } from "@/lib/api/orders";
 import { formatPrice } from "@/lib/format";
 import type { Order, OrderStatus } from "@/lib/types";
 
@@ -18,7 +18,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
   const [saving, setSaving] = useState(false);
 
   function load() {
-    getOrder(id).then((res) => {
+    getAdminOrder(id).then((res) => {
       if (res.success) {
         setOrder(res.data);
         setStatus(res.data.status);

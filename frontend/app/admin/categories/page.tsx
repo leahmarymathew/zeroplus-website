@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { getAdminCategories, createCategory, updateCategory, type AdminCategory } from "@/lib/api/admin/categories";
+import { uploadImage } from "@/lib/api/uploads";
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [name, setName] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function refresh() {
     getAdminCategories().then((res) => {
@@ -22,10 +26,22 @@ export default function AdminCategoriesPage() {
   function startEdit(c: AdminCategory) {
     setEditingId(c.id);
     setName(c.name);
+    setImageUrl(c.imageUrl);
   }
   function cancelEdit() {
     setEditingId(null);
     setName("");
+    setImageUrl(null);
+  }
+
+  async function handleUpload(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    const res = await uploadImage(file);
+    setUploading(false);
+    if (res.success) setImageUrl(res.data.url);
+    else toast.error(res.error.message);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -36,8 +52,8 @@ export default function AdminCategoriesPage() {
     }
     setSaving(true);
     const res = editingId
-      ? await updateCategory(editingId, { name: name.trim(), imageUrl: null })
-      : await createCategory({ name: name.trim(), imageUrl: null });
+      ? await updateCategory(editingId, { name: name.trim(), imageUrl })
+      : await createCategory({ name: name.trim(), imageUrl });
     setSaving(false);
     if (res.success) {
       toast.success(editingId ? "Category updated" : "Category added");
@@ -66,10 +82,27 @@ export default function AdminCategoriesPage() {
             <div>
               <label className="mb-1.5 block text-[12.5px] font-bold">Category Image</label>
               <div className="flex items-center gap-3">
-                <div className="h-16 w-16 flex-none rounded-xl bg-surface-pink-light" />
-                <div className="flex h-16 flex-1 items-center justify-center rounded-xl border-[1.5px] border-dashed border-border-pink text-[12.5px] font-bold text-rose">
-                  + Upload
-                </div>
+                {imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imageUrl} alt="" className="h-16 w-16 flex-none rounded-xl object-cover" />
+                ) : (
+                  <div className="h-16 w-16 flex-none rounded-xl bg-surface-pink-light" />
+                )}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex h-16 flex-1 items-center justify-center rounded-xl border-[1.5px] border-dashed border-border-pink text-[12.5px] font-bold text-rose disabled:opacity-60"
+                >
+                  {uploading ? "Uploading…" : "+ Upload"}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => handleUpload(e.target.files?.[0])}
+                  className="hidden"
+                />
               </div>
               <p className="mt-1.5 text-[11px] text-muted-light">Used as the tile image for this category on the homepage.</p>
             </div>
@@ -98,7 +131,12 @@ export default function AdminCategoriesPage() {
               {categories.map((c) => (
                 <tr key={c.id} className="border-b border-admin-row-border">
                   <td className="px-3 py-2.5">
-                    <div className="h-9 w-9 rounded-lg bg-surface-pink-light" />
+                    {c.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={c.imageUrl} alt="" className="h-9 w-9 rounded-lg object-cover" />
+                    ) : (
+                      <div className="h-9 w-9 rounded-lg bg-surface-pink-light" />
+                    )}
                   </td>
                   <td className="px-3 py-2.5 font-bold">{c.name}</td>
                   <td className="px-3 py-2.5 text-muted">{c.productCount}</td>

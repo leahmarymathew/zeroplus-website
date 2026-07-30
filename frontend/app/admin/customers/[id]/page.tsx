@@ -4,10 +4,9 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { getAdminCustomer } from "@/lib/api/admin/customers";
-import { getOrdersByUser } from "@/lib/api/orders";
 import { formatPrice } from "@/lib/format";
 import type { AdminCustomer } from "@/lib/mock/customers";
-import type { Order, OrderStatus } from "@/lib/types";
+import type { OrderStatus } from "@/lib/types";
 
 const STATUS_STYLES: Record<OrderStatus, string> = {
   PLACED: "bg-info-bg text-info-text",
@@ -21,14 +20,14 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
 export default function AdminCustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [customer, setCustomer] = useState<AdminCustomer | null | undefined>(undefined);
-  const [orders, setOrders] = useState<Order[]>([]);
 
   useEffect(() => {
-    Promise.all([getAdminCustomer(id), getOrdersByUser(id)]).then(([customerRes, ordersRes]) => {
-      setCustomer(customerRes.success ? customerRes.data : null);
-      if (ordersRes.success) setOrders(ordersRes.data);
+    getAdminCustomer(id).then((res) => {
+      setCustomer(res.success ? res.data : null);
     });
   }, [id]);
+
+  const orders = customer?.orders ?? [];
 
   if (customer === undefined) {
     return (

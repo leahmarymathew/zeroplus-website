@@ -24,9 +24,21 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "zeroplus-auth",
-      onRehydrateStorage: () => (state) => {
-        if (state) state.hydrated = true;
-      },
+      partialize: (state) => ({ user: state.user, accessToken: state.accessToken }),
     }
   )
 );
+
+// See store/adminAuthStore.ts for why this can't be the inline
+// `onRehydrateStorage` option — it fires mid-construction, before this
+// `const` binding exists, throwing a TDZ ReferenceError. Guarded: this
+// module also evaluates on the server (RSC), where there's no storage and
+// `.persist` isn't attached.
+if (typeof window !== "undefined") {
+  useAuthStore.persist.onFinishHydration(() => {
+    useAuthStore.setState({ hydrated: true });
+  });
+  if (useAuthStore.persist.hasHydrated()) {
+    useAuthStore.setState({ hydrated: true });
+  }
+}

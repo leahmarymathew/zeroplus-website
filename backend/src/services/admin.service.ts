@@ -208,6 +208,12 @@ const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   CANCELLED: [],
 };
 
+export async function getAdminOrder(id: string) {
+  const order = await prisma.order.findUnique({ where: { id }, include: orderInclude });
+  if (!order) throw notFound("Order");
+  return order;
+}
+
 export async function listAdminOrders(params: {
   q?: string;
   status?: OrderStatus;

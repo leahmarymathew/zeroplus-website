@@ -30,11 +30,22 @@ export const useWishlistStore = create<WishlistState>()(
     {
       name: "zeroplus-wishlist",
       partialize: (state) => ({ productIds: state.productIds }),
-      onRehydrateStorage: () => () => {
-        useWishlistStore.setState({ hydrated: true });
-      },
     }
   )
 );
+
+// See store/adminAuthStore.ts for why this can't be the inline
+// `onRehydrateStorage` option — it fires mid-construction, before this
+// `const` binding exists, throwing a TDZ ReferenceError. Guarded: this
+// module also evaluates on the server (RSC), where there's no storage and
+// `.persist` isn't attached.
+if (typeof window !== "undefined") {
+  useWishlistStore.persist.onFinishHydration(() => {
+    useWishlistStore.setState({ hydrated: true });
+  });
+  if (useWishlistStore.persist.hasHydrated()) {
+    useWishlistStore.setState({ hydrated: true });
+  }
+}
 
 export const selectWishlistCount = (state: WishlistState) => state.productIds.length;
