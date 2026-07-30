@@ -43,23 +43,19 @@ export const useCartStore = create<CartState>()(
     {
       name: "zeroplus-cart",
       partialize: (state) => ({ items: state.items }),
+      // Mutate the passed-in `state` directly rather than calling
+      // `useCartStore.setState(...)` via closure — persist can resolve
+      // rehydration before the `const useCartStore = create(...)` assignment
+      // finishes, and referencing the outer binding then throws
+      // "Cannot access 'useCartStore' before initialization", silently
+      // preventing `hydrated` from ever flipping true. Same pattern as
+      // store/authStore.ts.
+      onRehydrateStorage: () => (state) => {
+        if (state) state.hydrated = true;
+      },
     }
   )
 );
-
-// See store/adminAuthStore.ts for why this can't be the inline
-// `onRehydrateStorage` option — it fires mid-construction, before this
-// `const` binding exists, throwing a TDZ ReferenceError. Guarded: this
-// module also evaluates on the server (RSC), where there's no storage and
-// `.persist` isn't attached.
-if (typeof window !== "undefined") {
-  useCartStore.persist.onFinishHydration(() => {
-    useCartStore.setState({ hydrated: true });
-  });
-  if (useCartStore.persist.hasHydrated()) {
-    useCartStore.setState({ hydrated: true });
-  }
-}
 
 // Stable reference for "no items yet" reads (pre-hydration). A `[]` literal
 // inline in a selector would return a new array every call, which breaks

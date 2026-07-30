@@ -25,7 +25,7 @@ function variant(
 
 const now = new Date("2026-07-01T00:00:00.000Z").toISOString();
 
-const RAW: Array<Omit<Product, "images" | "rating" | "reviewCount"> & { rating: number; reviewCount: number }> = [
+const RAW: Array<Omit<Product, "images" | "videoUrl" | "rating" | "reviewCount"> & { rating: number; reviewCount: number }> = [
   {
     id: "prod_1",
     name: "Sample Product 1 — Diapers",
@@ -275,4 +275,4 @@ const RAW: Array<Omit<Product, "images" | "rating" | "reviewCount"> & { rating: 
   },
 ];
 
-export const MOCK_PRODUCTS: Product[] = RAW.map((p) => ({ ...p, images: [] }));
+export const MOCK_PRODUCTS: Product[] = RAW.map((p) => ({ ...p, images: [], videoUrl: null }));

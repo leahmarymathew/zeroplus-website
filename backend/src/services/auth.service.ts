@@ -22,12 +22,28 @@ function issueTokens(user: User) {
   };
 }
 
+// Verifies a REGISTER-purpose OTP was completed for this exact phone. Every
+// signup path (password or Google) routes through this — phone numbers are
+// leads for the shop, so an unverified one is not an acceptable account.
+async function assertPhoneVerified(phone: string, otpId: string, code: string) {
+  const { verifyOtp, consumeOtp } = await import("./otp.service.js");
+  const otp = await verifyOtp(otpId, code);
+  if (otp.purpose !== "REGISTER" || otp.phone !== phone) {
+    throw new ApiError(400, "OTP_INVALID", "Verify the same phone number you're signing up with");
+  }
+  return () => consumeOtp(otpId);
+}
+
 export async function register(input: {
   name: string;
   email?: string | null;
   phone: string;
   password: string;
+  otpId: string;
+  code: string;
 }) {
+  const consume = await assertPhoneVerified(input.phone, input.otpId, input.code);
+
   // email is optional; only check for a collision when one was provided.
   const email = input.email?.trim() || null;
   const [emailTaken, phoneTaken] = await Promise.all([
@@ -45,6 +61,7 @@ export async function register(input: {
       passwordHash: await bcrypt.hash(input.password, 10),
     },
   });
+  await consume();
   return issueTokens(user);
 }
 
@@ -66,11 +83,10 @@ export async function login(input: { identifier: string; password: string }) {
 
 const googleClient = new OAuth2Client(config.googleClientId);
 
-export async function loginWithGoogle(idToken: string) {
+async function verifyGoogleToken(idToken: string) {
   if (!config.googleClientId) {
     throw new ApiError(503, "SERVICE_UNAVAILABLE", "Google sign-in is not configured yet");
   }
-
   const ticket = await googleClient
     .verifyIdToken({ idToken, audience: config.googleClientId })
     .catch(() => {
@@ -78,33 +94,59 @@ export async function loginWithGoogle(idToken: string) {
     });
   const payload = ticket.getPayload();
   if (!payload?.sub) throw new ApiError(401, "INVALID_GOOGLE_TOKEN", "Google token could not be verified");
+  return payload;
+}
 
-  const { sub: googleId, email, name } = payload;
+// Existing accounts only. A brand new Google identity throws GOOGLE_NEEDS_PHONE
+// instead of creating an account — phone numbers are leads for the shop, so
+// Google alone (no phone) is never enough to finish signing up. The frontend
+// catches that code, collects + OTP-verifies a phone, then calls
+// registerWithGoogle to actually create the account.
+export async function loginWithGoogle(idToken: string) {
+  const payload = await verifyGoogleToken(idToken);
+  const { sub: googleId, email } = payload;
 
-  // 1) already linked  2) same email → link  3) brand new account
   let user = await prisma.user.findUnique({ where: { googleId } });
   if (!user && email) {
     const byEmail = await prisma.user.findUnique({ where: { email } });
-    if (byEmail) {
-      user = await prisma.user.update({ where: { id: byEmail.id }, data: { googleId } });
-    }
+    if (byEmail) user = await prisma.user.update({ where: { id: byEmail.id }, data: { googleId } });
   }
   if (!user) {
-    if (!email) throw new ApiError(400, "GOOGLE_EMAIL_REQUIRED", "Google account has no email");
-    user = await prisma.user.create({
-      data: {
-        name: name ?? email.split("@")[0],
-        email,
-        googleId,
-        // Plan Section 5: phone is unique + required. Google gives no phone,
-        // so store a placeholder derived from the google id; the customer
-        // sets a real phone at checkout / in their profile.
-        phone: `google:${googleId}`,
-        passwordHash: null,
-      },
-    });
+    throw new ApiError(404, "GOOGLE_NEEDS_PHONE", "Verify your phone number to finish creating your account");
   }
   return issueTokens(user);
+}
+
+// Completes a Google signup once the phone has been OTP-verified. Re-verifies
+// the idToken (short-lived but reusable within the same signup attempt — no
+// server-side pending-signup state needed between /auth/google and this call).
+export async function registerWithGoogle(input: { idToken: string; phone: string; otpId: string; code: string }) {
+  const payload = await verifyGoogleToken(input.idToken);
+  const { sub: googleId, email, name } = payload;
+  if (!email) throw new ApiError(400, "GOOGLE_EMAIL_REQUIRED", "Google account has no email");
+
+  const consume = await assertPhoneVerified(input.phone, input.otpId, input.code);
+
+  const [byGoogleId, byEmail, byPhone] = await Promise.all([
+    prisma.user.findUnique({ where: { googleId } }),
+    prisma.user.findUnique({ where: { email } }),
+    prisma.user.findUnique({ where: { phone: input.phone } }),
+  ]);
+  // Signed up elsewhere mid-flow (e.g. two tabs) — log in rather than error.
+  if (byGoogleId || byEmail) return { ...issueTokens(byGoogleId ?? byEmail!), created: false as const };
+  if (byPhone) throw new ApiError(409, "PHONE_TAKEN", "An account with this phone number already exists");
+
+  const user = await prisma.user.create({
+    data: {
+      name: name ?? email.split("@")[0],
+      email,
+      googleId,
+      phone: input.phone,
+      passwordHash: null,
+    },
+  });
+  await consume();
+  return { ...issueTokens(user), created: true as const };
 }
 
 export async function refresh(userId: string) {

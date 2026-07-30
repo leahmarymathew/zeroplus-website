@@ -3,6 +3,7 @@ import { LinkButton } from "@/components/ui/Button";
 import { ProductCardInteractive } from "@/components/storefront/ProductCardInteractive";
 import { getCategories } from "@/lib/api/categories";
 import { getProducts } from "@/lib/api/products";
+import { getBanners } from "@/lib/api/banners";
 import type { Product } from "@/lib/types";
 import { Truck, RotateCcw, ShieldCheck, Banknote, Star } from "lucide-react";
 
@@ -21,15 +22,20 @@ const TESTIMONIALS = [
 ];
 
 export default async function HomePage() {
-  const [categoriesRes, bestSellersRes, newArrivalsRes] = await Promise.all([
+  const [categoriesRes, bestSellersRes, newArrivalsRes, bannersRes] = await Promise.all([
     getCategories(),
     getProducts({ sort: "popular", limit: 4 }),
     getProducts({ sort: "newest", limit: 4 }),
+    getBanners(),
   ]);
 
   const categories = categoriesRes.success ? categoriesRes.data : [];
   const bestSellers = bestSellersRes.success ? bestSellersRes.data : [];
   const newArrivals = newArrivalsRes.success ? newArrivalsRes.data : [];
+  // Single hero slot — first active banner with media, if any. Multiple
+  // active banners exist for the admin's future rotation UI; the storefront
+  // just shows the lead one for now.
+  const heroBanner = (bannersRes.success ? bannersRes.data : []).find((b) => b.videoUrl || b.imageUrl) ?? null;
 
   return (
     <>
@@ -57,17 +63,29 @@ export default async function HomePage() {
               </LinkButton>
             </div>
           </div>
-          <div
-            className="flex h-[220px] min-w-[220px] flex-1 basis-[260px] items-center justify-center rounded-[20px] text-center text-xs font-semibold text-muted-light"
-            style={{
-              backgroundImage:
-                "repeating-linear-gradient(45deg, rgba(233,30,140,.06) 0 10px, rgba(122,79,201,.06) 10px 20px)",
-            }}
-          >
-            hero photo —
-            <br />
-            parent &amp; baby
-          </div>
+          {heroBanner?.videoUrl ? (
+            <div className="h-[220px] min-w-[220px] flex-1 basis-[260px] overflow-hidden rounded-[20px] bg-black">
+              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+              <video src={heroBanner.videoUrl} autoPlay muted loop playsInline className="h-full w-full object-cover" />
+            </div>
+          ) : heroBanner?.imageUrl ? (
+            <div className="h-[220px] min-w-[220px] flex-1 basis-[260px] overflow-hidden rounded-[20px]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={heroBanner.imageUrl} alt={heroBanner.title} className="h-full w-full object-cover" />
+            </div>
+          ) : (
+            <div
+              className="flex h-[220px] min-w-[220px] flex-1 basis-[260px] items-center justify-center rounded-[20px] text-center text-xs font-semibold text-muted-light"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(45deg, rgba(233,30,140,.06) 0 10px, rgba(122,79,201,.06) 10px 20px)",
+              }}
+            >
+              hero photo —
+              <br />
+              parent &amp; baby
+            </div>
+          )}
         </div>
       </section>
 

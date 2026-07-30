@@ -38,6 +38,7 @@ export async function addBanner(title: string): Promise<ApiResult<Banner>> {
     slotLabel: `Homepage Hero — Slide ${banners.length + 1}`,
     title,
     imageUrl: null,
+    videoUrl: null,
     status: "ACTIVE",
     sortOrder: banners.length,
   };
@@ -46,20 +47,24 @@ export async function addBanner(title: string): Promise<ApiResult<Banner>> {
   return { success: true, data: banner };
 }
 
+// PATCH /v1/admin/banners/:id — sets a slide's image or video (a slide is one
+// or the other; setting one doesn't clear the other server-side, so the
+// caller should pass the one being replaced).
 export async function updateBanner(
   id: string,
-  patch: { title?: string; imageUrl?: string | null; status?: Banner["status"] }
+  input: { title?: string; imageUrl?: string | null; videoUrl?: string | null; status?: Banner["status"] }
 ): Promise<ApiResult<Banner>> {
-  if (!USE_MOCKS) return unwrap<Banner>(api.patch(`/admin/banners/${id}`, patch));
-  await delay(150);
+  if (!USE_MOCKS) return unwrap<Banner>(api.patch(`/admin/banners/${id}`, input));
+  await delay(200);
   const banners = readBanners();
-  const idx = banners.findIndex((b) => b.id === id);
-  if (idx === -1) {
+  const index = banners.findIndex((b) => b.id === id);
+  if (index === -1) {
     return { success: false, error: { code: "NOT_FOUND", message: "Banner not found" } };
   }
-  banners[idx] = { ...banners[idx], ...patch };
+  const updated = { ...banners[index], ...input };
+  banners[index] = updated;
   writeBanners(banners);
-  return { success: true, data: banners[idx] };
+  return { success: true, data: updated };
 }
 
 export async function removeBanner(id: string): Promise<ApiResult<{ id: string }>> {

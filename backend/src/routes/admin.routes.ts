@@ -29,6 +29,7 @@ const productSchema = z.object({
   certifications: z.array(z.string()).optional(),
   ownerHighlight: z.string().max(60).nullable().optional(),
   isActive: z.boolean().optional(),
+  videoUrl: z.string().url().nullable().optional(),
   variants: z.array(variantSchema).min(1),
   images: z.array(z.object({ url: z.string().url(), sortOrder: z.number().int().optional() })).optional(),
 });
@@ -51,6 +52,11 @@ adminRouter.post("/products", validate(productSchema), async (req, res) => {
 });
 adminRouter.patch("/products/:id", validate(productSchema), async (req, res) => {
   ok(res, await admin.updateProduct(String(req.params.id), req.body));
+});
+// Zeroes every variant's stock in one call — the "we ran out" tick in the admin
+// product list. Restocking goes through PATCH /products/:id with real numbers.
+adminRouter.patch("/products/:id/sold-out", async (req, res) => {
+  ok(res, await admin.setProductSoldOut(String(req.params.id)));
 });
 adminRouter.delete("/products/:id", async (req, res) => {
   ok(res, await admin.deleteProduct(String(req.params.id)));
@@ -166,7 +172,13 @@ adminRouter.get("/banners", async (_req, res) => {
 });
 adminRouter.post(
   "/banners",
-  validate(z.object({ title: z.string().min(1), imageUrl: z.string().url().nullable().optional() })),
+  validate(
+    z.object({
+      title: z.string().min(1),
+      imageUrl: z.string().url().nullable().optional(),
+      videoUrl: z.string().url().nullable().optional(),
+    }),
+  ),
   async (req, res) => {
     ok(res, await admin.createBanner(req.body), undefined, 201);
   },
@@ -177,6 +189,7 @@ adminRouter.patch(
     z.object({
       title: z.string().min(1).optional(),
       imageUrl: z.string().url().nullable().optional(),
+      videoUrl: z.string().url().nullable().optional(),
       status: z.enum(["ACTIVE", "SCHEDULED"]).optional(),
     }),
   ),

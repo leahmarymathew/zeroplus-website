@@ -166,6 +166,28 @@ export async function updateProduct(id: string, input: ProductFormInput): Promis
   return { success: true, data: updated };
 }
 
+// PATCH /v1/admin/products/:id/sold-out — zeroes every variant's stock in one
+// call. Sold out is not a separate flag: it just means stock is 0, so this is
+// the shortcut for the counter, not a new piece of state. Restocking goes back
+// through updateProduct with the real per-variant counts.
+export async function setProductSoldOut(id: string): Promise<ApiResult<Product>> {
+  if (!USE_MOCKS) return unwrap<Product>(api.patch(`/admin/products/${id}/sold-out`));
+  await delay(150);
+  const products = readProducts();
+  const index = products.findIndex((p) => p.id === id);
+  if (index === -1) {
+    return { success: false, error: { code: "NOT_FOUND", message: "Product not found" } };
+  }
+  const updated: Product = {
+    ...products[index],
+    updatedAt: new Date().toISOString(),
+    variants: products[index].variants.map((v) => ({ ...v, stockQty: 0 })),
+  };
+  products[index] = updated;
+  writeProducts(products);
+  return { success: true, data: updated };
+}
+
 // DELETE /v1/admin/products/:id — Section 6.2
 export async function deleteProduct(id: string): Promise<ApiResult<{ id: string }>> {
   if (!USE_MOCKS) return unwrap<{ id: string }>(api.delete(`/admin/products/${id}`));

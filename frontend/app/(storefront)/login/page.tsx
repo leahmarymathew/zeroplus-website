@@ -7,11 +7,16 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
+import { GoogleLogin } from "@react-oauth/google";
 import { Header } from "@/components/layout/Header";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { OtpInput } from "@/components/ui/OtpInput";
 import { useAuthStore } from "@/store/authStore";
-import { login as apiLogin, register as apiRegister } from "@/lib/api/auth";
+import { login as apiLogin, register as apiRegister, loginWithGoogle, registerWithGoogle } from "@/lib/api/auth";
+import { sendOtp } from "@/lib/api/otp";
+
+const GOOGLE_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
 const loginSchema = z.object({
   identifier: z.string().min(3, "Enter your phone number or email"),
@@ -35,21 +40,151 @@ export default function LoginPage() {
   );
 }
 
-function GoogleButton() {
+// Google alone never finishes a signup — every account needs a verified
+// phone (they're leads for the shop), so a brand new Google identity comes
+// back from the backend as GOOGLE_NEEDS_PHONE instead of a session. This
+// mirrors the password-register OTP step: collect + verify the phone, then
+// call registerWithGoogle to actually create the account.
+function GoogleCompleteSignup({ idToken, onCancel }: { idToken: string; onCancel: () => void }) {
+  const [phone, setPhone] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpId, setOtpId] = useState("");
+  const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
+  const [sending, setSending] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const login = useAuthStore((s) => s.login);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") || "/account";
+
+  async function handleSendOtp() {
+    if (!/^\d{10}$/.test(phone)) {
+      toast.error("Enter a valid 10-digit phone number");
+      return;
+    }
+    setSending(true);
+    const res = await sendOtp(phone, "register");
+    setSending(false);
+    if (!res.success) {
+      toast.error(res.error.message);
+      return;
+    }
+    setOtpId(res.data.otpId);
+    setOtpSent(true);
+    toast.success("Verification code sent");
+  }
+
+  async function handleFinish() {
+    const code = otpDigits.join("");
+    if (code.length !== 6) {
+      toast.error("Enter all 6 digits");
+      return;
+    }
+    setFinishing(true);
+    const res = await registerWithGoogle({ idToken, phone, otpId, code });
+    setFinishing(false);
+    if (!res.success) {
+      toast.error(res.error.message);
+      return;
+    }
+    login(res.data.user, res.data.accessToken);
+    toast.success("Account created");
+    router.push(redirect);
+  }
+
   return (
-    <button
-      type="button"
-      onClick={() => toast("Google sign-in needs a real OAuth client ID + backend — wired once /backend exists")}
-      className="mb-4 flex w-full items-center justify-center gap-2.5 rounded-full border-[1.5px] border-border-pink bg-white py-3 text-sm font-bold text-ink"
-    >
-      <svg width="18" height="18" viewBox="0 0 24 24">
-        <path fill="#4285F4" d="M23.5 12.3c0-.85-.08-1.66-.22-2.45H12v4.63h6.46c-.28 1.5-1.13 2.77-2.4 3.63v3h3.87c2.27-2.09 3.57-5.17 3.57-8.81z" />
-        <path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.95-2.9l-3.87-3c-1.08.72-2.45 1.15-4.08 1.15-3.14 0-5.8-2.12-6.75-4.96H1.24v3.1C3.22 21.3 7.28 24 12 24z" />
-        <path fill="#FBBC05" d="M5.25 14.29A7.2 7.2 0 0 1 4.86 12c0-.8.14-1.57.39-2.29v-3.1H1.24A11.98 11.98 0 0 0 0 12c0 1.93.46 3.76 1.24 5.39l4.01-3.1z" />
-        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.28 0 3.22 2.7 1.24 6.61l4.01 3.1C6.2 6.87 8.86 4.75 12 4.75z" />
-      </svg>
-      Continue with Google
-    </button>
+    <div>
+      <p className="mb-4 text-[12.5px] text-muted">
+        One more step — verify your phone number to finish creating your account.
+      </p>
+      {!otpSent ? (
+        <>
+          <Input
+            type="tel"
+            placeholder="Phone number"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+            className="mb-4"
+          />
+          <Button variant="primary" className="mb-3 w-full" onClick={handleSendOtp} disabled={sending}>
+            {sending ? "Sending…" : "Send Verification Code"}
+          </Button>
+        </>
+      ) : (
+        <>
+          <div className="mb-4">
+            <OtpInput digits={otpDigits} onChange={setOtpDigits} />
+          </div>
+          <Button variant="primary" className="mb-3 w-full" onClick={handleFinish} disabled={finishing}>
+            {finishing ? "Finishing…" : "Verify & Finish Signup"}
+          </Button>
+          <button type="button" onClick={handleSendOtp} className="mb-3 w-full text-center text-xs font-bold text-rose">
+            Resend code
+          </button>
+        </>
+      )}
+      <button type="button" onClick={onCancel} className="w-full text-center text-xs font-bold text-muted-light">
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+function GoogleButton({ onNeedsPhone }: { onNeedsPhone: (idToken: string) => void }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") || "/account";
+  const login = useAuthStore((s) => s.login);
+
+  async function handleSuccess(idToken: string) {
+    const res = await loginWithGoogle(idToken);
+    if (res.success) {
+      login(res.data.user, res.data.accessToken);
+      toast.success("Logged in with Google");
+      router.push(redirect);
+      return;
+    }
+    if (res.error.code === "GOOGLE_NEEDS_PHONE") {
+      onNeedsPhone(idToken);
+      return;
+    }
+    toast.error(res.error.message);
+  }
+
+  if (!GOOGLE_CONFIGURED) {
+    return (
+      <button
+        type="button"
+        onClick={() => toast("Google sign-in needs a real OAuth client ID — see setup docs")}
+        className="mb-4 flex w-full items-center justify-center gap-2.5 rounded-full border-[1.5px] border-border-pink bg-white py-3 text-sm font-bold text-ink"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M23.5 12.3c0-.85-.08-1.66-.22-2.45H12v4.63h6.46c-.28 1.5-1.13 2.77-2.4 3.63v3h3.87c2.27-2.09 3.57-5.17 3.57-8.81z" />
+          <path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.95-2.9l-3.87-3c-1.08.72-2.45 1.15-4.08 1.15-3.14 0-5.8-2.12-6.75-4.96H1.24v3.1C3.22 21.3 7.28 24 12 24z" />
+          <path fill="#FBBC05" d="M5.25 14.29A7.2 7.2 0 0 1 4.86 12c0-.8.14-1.57.39-2.29v-3.1H1.24A11.98 11.98 0 0 0 0 12c0 1.93.46 3.76 1.24 5.39l4.01-3.1z" />
+          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.28 0 3.22 2.7 1.24 6.61l4.01 3.1C6.2 6.87 8.86 4.75 12 4.75z" />
+        </svg>
+        Continue with Google
+      </button>
+    );
+  }
+
+  return (
+    <div className="mb-4 flex justify-center [&>div]:w-full">
+      <GoogleLogin
+        onSuccess={(cred) => {
+          if (!cred.credential) {
+            toast.error("Google sign-in failed — try again");
+            return;
+          }
+          handleSuccess(cred.credential);
+        }}
+        onError={() => toast.error("Google sign-in failed — try again")}
+        shape="pill"
+        theme="outline"
+        width="336"
+      />
+    </div>
   );
 }
 
@@ -63,6 +198,21 @@ function LoginPageContent() {
   const loginForm = useForm<LoginForm>({ resolver: zodResolver(loginSchema) });
   const registerForm = useForm<RegisterForm>({ resolver: zodResolver(registerSchema) });
 
+  // Every signup needs a verified phone (Section on leads), so registering is
+  // two steps: collect + validate the form, send an OTP, then verify it before
+  // the account is actually created. `pendingRegister` holds the validated
+  // form values while the customer is entering the code.
+  const [registerStep, setRegisterStep] = useState<"form" | "otp">("form");
+  const [pendingRegister, setPendingRegister] = useState<RegisterForm | null>(null);
+  const [registerOtpId, setRegisterOtpId] = useState("");
+  const [registerOtpDigits, setRegisterOtpDigits] = useState(["", "", "", "", "", ""]);
+  const [sendingRegisterOtp, setSendingRegisterOtp] = useState(false);
+  const [creatingAccount, setCreatingAccount] = useState(false);
+
+  // Set once Google's popup succeeds but the backend has no matching account
+  // yet — switches the whole card over to the phone-verification mini-flow.
+  const [googleIdToken, setGoogleIdToken] = useState<string | null>(null);
+
   async function onLogin(values: LoginForm) {
     const res = await apiLogin(values.identifier, values.password);
     if (!res.success) {
@@ -74,13 +224,41 @@ function LoginPageContent() {
     router.push(redirect);
   }
 
-  async function onRegister(values: RegisterForm) {
+  async function onRegisterFormSubmit(values: RegisterForm) {
+    setSendingRegisterOtp(true);
+    const res = await sendOtp(values.phone, "register");
+    setSendingRegisterOtp(false);
+    if (!res.success) {
+      toast.error(res.error.message);
+      return;
+    }
+    setPendingRegister(values);
+    setRegisterOtpId(res.data.otpId);
+    setRegisterOtpDigits(["", "", "", "", "", ""]);
+    setRegisterStep("otp");
+    toast.success("Verification code sent");
+  }
+
+  function handleResendRegisterOtp() {
+    if (pendingRegister) onRegisterFormSubmit(pendingRegister);
+  }
+
+  async function handleVerifyAndCreateAccount() {
+    const code = registerOtpDigits.join("");
+    if (code.length !== 6 || !pendingRegister) {
+      toast.error("Enter all 6 digits");
+      return;
+    }
+    setCreatingAccount(true);
     const res = await apiRegister({
-      name: values.name,
-      phone: values.phone,
-      email: values.email || null,
-      password: values.password,
+      name: pendingRegister.name,
+      phone: pendingRegister.phone,
+      email: pendingRegister.email || null,
+      password: pendingRegister.password,
+      otpId: registerOtpId,
+      code,
     });
+    setCreatingAccount(false);
     if (!res.success) {
       toast.error(res.error.message);
       return;
@@ -95,67 +273,94 @@ function LoginPageContent() {
       <Header variant="minimal" />
       <main className="flex flex-1 items-center justify-center px-4 py-8">
         <div className="w-full max-w-[400px] rounded-[22px] border border-border-pink-light bg-white p-7 shadow-[0_8px_30px_rgba(0,0,0,0.05)]">
-          <div className="mb-6 flex rounded-full bg-input-fill p-1">
-            <button
-              type="button"
-              onClick={() => setMode("login")}
-              className={`flex-1 rounded-full py-2 text-[13.5px] font-bold ${mode === "login" ? "bg-white text-rose" : "text-muted-light"}`}
-            >
-              Log In
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("register")}
-              className={`flex-1 rounded-full py-2 text-[13.5px] font-bold ${mode === "register" ? "bg-white text-rose" : "text-muted-light"}`}
-            >
-              Register
-            </button>
-          </div>
-
-          <GoogleButton />
-
-          <div className="mb-4 flex items-center gap-2.5">
-            <div className="h-px flex-1 bg-border-pink-light" />
-            <span className="text-xs text-strikethrough">or</span>
-            <div className="h-px flex-1 bg-border-pink-light" />
-          </div>
-
-          {mode === "login" ? (
-            <form onSubmit={loginForm.handleSubmit(onLogin)}>
-              <div className="mb-4.5 flex flex-col gap-3">
-                <Input placeholder="Phone number or email" {...loginForm.register("identifier")} error={loginForm.formState.errors.identifier?.message} />
-                <Input type="password" placeholder="Password" {...loginForm.register("password")} error={loginForm.formState.errors.password?.message} />
-              </div>
-              <div className="mb-4.5 text-right">
-                <Link href="/forgot-password" className="text-xs font-bold">
-                  Forgot password?
-                </Link>
-              </div>
-              <Button type="submit" variant="primary" className="w-full">
-                Log In
-              </Button>
-            </form>
+          {googleIdToken ? (
+            <GoogleCompleteSignup idToken={googleIdToken} onCancel={() => setGoogleIdToken(null)} />
           ) : (
-            <form onSubmit={registerForm.handleSubmit(onRegister)}>
-              <div className="mb-4.5 flex flex-col gap-3">
-                <Input placeholder="Full name" {...registerForm.register("name")} error={registerForm.formState.errors.name?.message} />
-                <Input placeholder="Phone number" {...registerForm.register("phone")} error={registerForm.formState.errors.phone?.message} />
-                <Input type="email" placeholder="Email" {...registerForm.register("email")} error={registerForm.formState.errors.email?.message} />
-                <Input type="password" placeholder="Create password" {...registerForm.register("password")} error={registerForm.formState.errors.password?.message} />
+            <>
+              <div className="mb-6 flex rounded-full bg-input-fill p-1">
+                <button
+                  type="button"
+                  onClick={() => setMode("login")}
+                  className={`flex-1 rounded-full py-2 text-[13.5px] font-bold ${mode === "login" ? "bg-white text-rose" : "text-muted-light"}`}
+                >
+                  Log In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("register");
+                    setRegisterStep("form");
+                  }}
+                  className={`flex-1 rounded-full py-2 text-[13.5px] font-bold ${mode === "register" ? "bg-white text-rose" : "text-muted-light"}`}
+                >
+                  Register
+                </button>
               </div>
-              <Button type="submit" variant="primary" className="mb-4.5 w-full">
-                Create Account
-              </Button>
-            </form>
-          )}
 
-          <div className="mb-4 h-px bg-border-pink-light" />
-          <Link
-            href="/checkout"
-            className="block rounded-full bg-input-fill py-3 text-center text-sm font-bold text-ink"
-          >
-            Continue as Guest
-          </Link>
+              <GoogleButton onNeedsPhone={setGoogleIdToken} />
+
+              <div className="mb-4 flex items-center gap-2.5">
+                <div className="h-px flex-1 bg-border-pink-light" />
+                <span className="text-xs text-strikethrough">or</span>
+                <div className="h-px flex-1 bg-border-pink-light" />
+              </div>
+
+              {mode === "login" ? (
+                <form onSubmit={loginForm.handleSubmit(onLogin)}>
+                  <div className="mb-4.5 flex flex-col gap-3">
+                    <Input placeholder="Phone number or email" {...loginForm.register("identifier")} error={loginForm.formState.errors.identifier?.message} />
+                    <Input type="password" placeholder="Password" {...loginForm.register("password")} error={loginForm.formState.errors.password?.message} />
+                  </div>
+                  <div className="mb-4.5 text-right">
+                    <Link href="/forgot-password" className="text-xs font-bold">
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <Button type="submit" variant="primary" className="w-full">
+                    Log In
+                  </Button>
+                </form>
+              ) : registerStep === "form" ? (
+                <form onSubmit={registerForm.handleSubmit(onRegisterFormSubmit)}>
+                  <div className="mb-4.5 flex flex-col gap-3">
+                    <Input placeholder="Full name" {...registerForm.register("name")} error={registerForm.formState.errors.name?.message} />
+                    <Input placeholder="Phone number" {...registerForm.register("phone")} error={registerForm.formState.errors.phone?.message} />
+                    <Input type="email" placeholder="Email (optional)" {...registerForm.register("email")} error={registerForm.formState.errors.email?.message} />
+                    <Input type="password" placeholder="Create password" {...registerForm.register("password")} error={registerForm.formState.errors.password?.message} />
+                  </div>
+                  <Button type="submit" variant="primary" className="mb-4.5 w-full" disabled={sendingRegisterOtp}>
+                    {sendingRegisterOtp ? "Sending code…" : "Send Verification Code"}
+                  </Button>
+                </form>
+              ) : (
+                <div>
+                  <p className="mb-3 text-[12.5px] text-muted">
+                    Enter the 6-digit code sent to <span className="font-bold">{pendingRegister?.phone}</span> to finish creating your account.
+                  </p>
+                  <div className="mb-4">
+                    <OtpInput digits={registerOtpDigits} onChange={setRegisterOtpDigits} />
+                  </div>
+                  <Button type="button" variant="primary" className="mb-3 w-full" onClick={handleVerifyAndCreateAccount} disabled={creatingAccount}>
+                    {creatingAccount ? "Creating account…" : "Verify & Create Account"}
+                  </Button>
+                  <button type="button" onClick={handleResendRegisterOtp} className="mb-3 w-full text-center text-xs font-bold text-rose">
+                    Resend code
+                  </button>
+                  <button type="button" onClick={() => setRegisterStep("form")} className="w-full text-center text-xs font-bold text-muted-light">
+                    Change details
+                  </button>
+                </div>
+              )}
+
+              <div className="mb-4 mt-4.5 h-px bg-border-pink-light" />
+              <Link
+                href="/checkout"
+                className="block rounded-full bg-input-fill py-3 text-center text-sm font-bold text-ink"
+              >
+                Continue as Guest
+              </Link>
+            </>
+          )}
         </div>
       </main>
     </>

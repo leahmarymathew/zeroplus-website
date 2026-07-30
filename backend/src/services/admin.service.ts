@@ -36,6 +36,7 @@ export interface ProductInput {
   certifications?: string[];
   ownerHighlight?: string | null;
   isActive?: boolean;
+  videoUrl?: string | null;
   variants: VariantInput[];
   images?: ImageInput[];
 }
@@ -89,6 +90,7 @@ export async function createProduct(input: ProductInput) {
       certifications: input.certifications ?? [],
       ownerHighlight: input.ownerHighlight ?? null,
       isActive: input.isActive ?? true,
+      videoUrl: input.videoUrl ?? null,
       variants: { create: input.variants },
       images: { create: (input.images ?? []).map((i, idx) => ({ url: i.url, sortOrder: i.sortOrder ?? idx })) },
     },
@@ -118,6 +120,7 @@ export async function updateProduct(id: string, input: ProductInput) {
         certifications: input.certifications ?? [],
         ownerHighlight: input.ownerHighlight ?? null,
         isActive: input.isActive ?? true,
+        videoUrl: input.videoUrl ?? null,
       },
     });
 
@@ -142,6 +145,21 @@ export async function updateProduct(id: string, input: ProductInput) {
 
     return tx.product.findUniqueOrThrow({ where: { id }, include: productInclude });
   });
+}
+
+// One-click "we ran out at the counter" switch for the admin product list.
+// Sold out means genuinely zero here — there is no separate override flag, so
+// stockQty stays the single source of truth and the storefront's existing
+// out-of-stock rendering picks it up with no extra checks.
+//
+// Only the sold-out direction is automatic. Restocking needs a real number,
+// which the admin enters per variant in the edit form.
+export async function setProductSoldOut(id: string) {
+  const exists = await prisma.product.findUnique({ where: { id }, select: { id: true } });
+  if (!exists) throw notFound("Product");
+
+  await prisma.productVariant.updateMany({ where: { productId: id }, data: { stockQty: 0 } });
+  return prisma.product.findUniqueOrThrow({ where: { id }, include: productInclude });
 }
 
 // Soft delete when the product appears in any order (history must survive);
@@ -324,22 +342,35 @@ export async function listBanners() {
   return prisma.banner.findMany({ orderBy: { sortOrder: "asc" } });
 }
 
-export async function createBanner(input: { title: string; imageUrl?: string | null }) {
+export async function createBanner(input: { title: string; imageUrl?: string | null; videoUrl?: string | null }) {
   const count = await prisma.banner.count();
   return prisma.banner.create({
     data: {
       title: input.title,
       slotLabel: `Homepage Hero — Slide ${count + 1}`,
       imageUrl: input.imageUrl ?? null,
+      videoUrl: input.videoUrl ?? null,
       sortOrder: count,
     },
   });
 }
 
-export async function updateBanner(id: string, input: { title?: string; imageUrl?: string | null; status?: "ACTIVE" | "SCHEDULED" }) {
+export async function updateBanner(
+  id: string,
+  input: { title?: string; imageUrl?: string | null; videoUrl?: string | null; status?: "ACTIVE" | "SCHEDULED" },
+) {
   const exists = await prisma.banner.findUnique({ where: { id } });
   if (!exists) throw notFound("Banner");
   return prisma.banner.update({ where: { id }, data: input });
+}
+
+// Public homepage hero — active slides only, in display order. A slide is
+// either a video or a still image (videoUrl set means show that, not both).
+export async function listActiveBanners() {
+  return prisma.banner.findMany({
+    where: { status: "ACTIVE" },
+    orderBy: { sortOrder: "asc" },
+  });
 }
 
 export async function deleteBanner(id: string) {

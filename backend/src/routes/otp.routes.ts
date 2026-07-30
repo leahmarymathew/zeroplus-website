@@ -36,11 +36,13 @@ const perIpLimiter = rateLimit({
 
 const sendSchema = z.object({
   phone: z.string().regex(/^\+?[0-9]{10,13}$/),
-  // Only CHECKOUT is offered here; LOGIN/PASSWORD_RESET flows have their own routes
-  purpose: z.enum(["checkout"]).transform(() => "CHECKOUT" as const),
+  // CHECKOUT (COD) and REGISTER (every signup path) share this endpoint;
+  // PASSWORD_RESET has its own route (/auth/forgot-password) since it also
+  // needs to check the phone belongs to an existing account first.
+  purpose: z.enum(["checkout", "register"]).transform((v): "CHECKOUT" | "REGISTER" => (v === "checkout" ? "CHECKOUT" : "REGISTER")),
 });
 
-// POST /v1/otp/send — COD checkout verification (plan 6.4)
+// POST /v1/otp/send — COD checkout verification and signup phone verification (plan 6.4)
 otpRouter.post("/send", perIpLimiter, perPhoneLimiter, validate(sendSchema), async (req, res) => {
   const result = await otp.sendOtp(req.body.phone, req.body.purpose);
   ok(res, result);

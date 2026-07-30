@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    setupFiles: ["./tests/setup.ts"],
     fileParallelism: false, // tests share one database; run serially
     hookTimeout: 30_000,
     testTimeout: 20_000,
