@@ -10,9 +10,21 @@ import { config } from "../config.js";
 // body AND in a one-tap/copy button, so both components carry the same code.
 // If the approved template uses a plain copy-code button, adjust the button
 // sub_type below to match ("url" for one-tap autofill).
+// Meta wants digits only, *including* the country code. The checkout form
+// validates a bare 10-digit Indian number and sends exactly that, so stripping
+// non-digits alone would hand Meta "9812345678" and every send would fail.
+// India-only store (plan Section 12), so a 10-digit number gets 91 prepended;
+// anything already carrying a country code is passed through untouched.
+const INDIA_CC = "91";
+
+export function toWhatsAppNumber(phone: string): string {
+  const digits = phone.replace(/[^0-9]/g, "");
+  return digits.length === 10 ? `${INDIA_CC}${digits}` : digits;
+}
+
 export async function sendOtpWhatsApp(phone: string, code: string): Promise<void> {
   const wa = config.otp.whatsapp;
-  const to = phone.replace(/[^0-9]/g, ""); // Meta wants digits only, with country code
+  const to = toWhatsAppNumber(phone);
   const url = `https://graph.facebook.com/${wa.apiVersion}/${wa.phoneNumberId}/messages`;
 
   await axios.post(
