@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import { buildApp } from "../src/app.js";
 import { prisma } from "../src/lib/prisma.js";
-import { resetDb, seedProduct, seedUser } from "./helpers.js";
+import { resetDb, seedProduct, seedUser, seedOtp } from "./helpers.js";
 
 const app = buildApp();
 beforeEach(resetDb);
@@ -23,7 +23,10 @@ describe("cart", () => {
     expect(clamp.body.data.items[0].quantity).toBe(5);
 
     // register on the same agent -> guest cart merges to the user
-    await agent.post("/v1/auth/register").send({ name: "A", email: "a@example.com", phone: "+919812345678", password: "password123" });
+    const { otpId, code } = await seedOtp("+919812345678", "REGISTER");
+    await agent
+      .post("/v1/auth/register")
+      .send({ name: "A", email: "a@example.com", phone: "+919812345678", password: "password123", otpId, code });
     const login = await agent.post("/v1/auth/login").send({ identifier: "a@example.com", password: "password123" });
     const token = login.body.data.accessToken;
     const cart = await agent.get("/v1/cart").set("Authorization", `Bearer ${token}`);
