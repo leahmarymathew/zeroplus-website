@@ -32,7 +32,7 @@ export default function WishlistPage() {
   }, [productIds]);
 
   return (
-    <div className="mx-auto max-w-[1200px] px-4 pt-5 pb-14 sm:px-8 sm:pt-8">
+    <div className="mx-auto px-4 pt-5 pb-14 sm:px-8 lg:px-12 sm:pt-8">
       <h1 className="mb-5 text-2xl font-extrabold sm:text-[30px]">My Wishlist</h1>
 
       {!loading && products.length === 0 ? (

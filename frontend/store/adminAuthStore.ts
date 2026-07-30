@@ -29,9 +29,28 @@ export const useAdminAuthStore = create<AdminAuthState>()(
     }),
     {
       name: "zeroplus-admin-auth",
-      onRehydrateStorage: () => (state) => {
-        if (state) state.hydrated = true;
-      },
+      partialize: (state) => ({
+        isAuthenticated: state.isAuthenticated,
+        user: state.user,
+        accessToken: state.accessToken,
+      }),
     }
   )
 );
+
+// `onRehydrateStorage` (a persist *option*, passed in above) fires while
+// `create()` is still constructing the store — before this `const` binding
+// exists — so a callback that closes over `useAdminAuthStore` throws a TDZ
+// ReferenceError and `hydrated` never flips. Registering via `.persist.*`
+// below runs after the binding exists. `hasHydrated()` covers the case
+// where (synchronous storage) hydration already finished by this point.
+// Guarded: this module also evaluates on the server (RSC), where there's
+// no storage and `.persist` isn't attached.
+if (typeof window !== "undefined") {
+  useAdminAuthStore.persist.onFinishHydration(() => {
+    useAdminAuthStore.setState({ hydrated: true });
+  });
+  if (useAdminAuthStore.persist.hasHydrated()) {
+    useAdminAuthStore.setState({ hydrated: true });
+  }
+}

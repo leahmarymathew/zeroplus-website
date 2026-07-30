@@ -111,7 +111,7 @@ function ShopPageContent() {
   }
 
   return (
-    <div className="mx-auto max-w-[1200px] px-4 pt-5 pb-8 sm:px-8 sm:pt-8">
+    <div className="mx-auto px-4 pt-5 pb-8 sm:px-8 lg:px-12 sm:pt-8">
       <div className="mb-1.5 text-[13px] text-muted-light">
         <Link href="/">Home</Link> / <span className="text-ink">Shop</span>
       </div>

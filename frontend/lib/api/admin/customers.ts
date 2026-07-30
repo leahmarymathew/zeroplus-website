@@ -42,5 +42,5 @@ export async function getAdminCustomer(id: string): Promise<ApiResult<AdminCusto
   }
   const ordersRes = await getAdminOrders();
   const orders = ordersRes.success ? ordersRes.data.filter((o) => o.userId === id) : [];
-  return { success: true, data: { ...customer, orderCount: orders.length } };
+  return { success: true, data: { ...customer, orderCount: orders.length, orders } };
 }

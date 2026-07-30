@@ -1,10 +1,14 @@
-import type { User } from "@/lib/types";
+import type { Order, User } from "@/lib/types";
 
 // Placeholder customer directory for the admin panel (Section 2.2). Order
 // counts are a derived admin-view field, not part of the User model in
 // Section 5 — computed here rather than added to lib/types.ts.
 export interface AdminCustomer extends User {
   orderCount: number;
+  // Only populated by GET /v1/admin/customers/:id (the detail view) — the
+  // list endpoint omits it. Admin-scoped: unlike GET /v1/orders, it isn't
+  // limited to the requesting (admin's own) JWT.
+  orders?: Order[];
 }
 
 const now = new Date("2026-07-01T00:00:00.000Z").toISOString();

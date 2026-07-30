@@ -151,6 +151,17 @@ export async function getAdminOrders(): Promise<ApiResult<Order[]>> {
   return { success: true, data: readOrders() };
 }
 
+// GET /v1/admin/orders/:id — admin can view any order, unlike GET /v1/orders/:id
+// which is scoped to the requesting customer (owner JWT or guest token).
+export async function getAdminOrder(orderId: string): Promise<ApiResult<Order>> {
+  if (!USE_MOCKS) return unwrap<Order>(api.get(`/admin/orders/${orderId}`));
+  const order = readOrders().find((o) => o.id === orderId);
+  if (!order) {
+    return { success: false, error: { code: "NOT_FOUND", message: "Order not found" } };
+  }
+  return { success: true, data: order };
+}
+
 // PATCH /v1/admin/orders/:id/status — Section 6.3
 export async function updateOrderStatus(
   orderId: string,

@@ -81,7 +81,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
       categoryId,
       brand: brand.trim() || null,
       safetyInfo: safetyInfo.trim() || null,
-      certifications: certifications.size > 0 ? Array.from(certifications) : null,
+      certifications: Array.from(certifications),
       ownerHighlight: ownerHighlight.trim() || null,
       isActive: product?.isActive ?? true,
       videoUrl,
