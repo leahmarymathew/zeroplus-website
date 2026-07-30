@@ -147,6 +147,21 @@ export async function updateProduct(id: string, input: ProductInput) {
   });
 }
 
+// One-click "we ran out at the counter" switch for the admin product list.
+// Sold out means genuinely zero here — there is no separate override flag, so
+// stockQty stays the single source of truth and the storefront's existing
+// out-of-stock rendering picks it up with no extra checks.
+//
+// Only the sold-out direction is automatic. Restocking needs a real number,
+// which the admin enters per variant in the edit form.
+export async function setProductSoldOut(id: string) {
+  const exists = await prisma.product.findUnique({ where: { id }, select: { id: true } });
+  if (!exists) throw notFound("Product");
+
+  await prisma.productVariant.updateMany({ where: { productId: id }, data: { stockQty: 0 } });
+  return prisma.product.findUniqueOrThrow({ where: { id }, include: productInclude });
+}
+
 // Soft delete when the product appears in any order (history must survive);
 // hard delete only when it was never ordered. OrderItem.variantId has no FK
 // relation (snapshots make it independent), so we check against the product's

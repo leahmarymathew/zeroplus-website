@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { getAdminProducts, type GetAdminProductsParams } from "@/lib/api/admin/products";
+import { getAdminProducts, setProductSoldOut, type GetAdminProductsParams } from "@/lib/api/admin/products";
 import { getCategories } from "@/lib/api/categories";
 import { formatPrice } from "@/lib/format";
 import type { Category, Product } from "@/lib/types";
@@ -16,12 +18,33 @@ function minPrice(p: Product) {
 }
 
 export default function AdminProductsPage() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState<GetAdminProductsParams["stock"] | "all">("all");
   const [sortBy, setSortBy] = useState<GetAdminProductsParams["sort"]>("name");
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  // Ticking means "we ran out" — it zeroes the stock, which is all sold out is.
+  // Unticking can't be automatic: restocking needs a real count, so it opens the
+  // edit form where per-variant stock lives.
+  async function handleSoldOutToggle(product: Product, soldOut: boolean) {
+    if (!soldOut) {
+      router.push(`/admin/products/${product.id}/edit`);
+      return;
+    }
+    setSavingId(product.id);
+    const res = await setProductSoldOut(product.id);
+    setSavingId(null);
+    if (res.success) {
+      setProducts((rows) => rows.map((r) => (r.id === product.id ? res.data : r)));
+      toast.success(`${product.name} marked sold out`);
+    } else {
+      toast.error(res.error.message);
+    }
+  }
 
   useEffect(() => {
     getCategories().then((res) => {
@@ -100,6 +123,7 @@ export default function AdminProductsPage() {
               <th className="px-3 py-2.5">Category</th>
               <th className="px-3 py-2.5">Price</th>
               <th className="px-3 py-2.5">Stock</th>
+              <th className="px-3 py-2.5">Sold Out</th>
               <th className="px-3 py-2.5" />
             </tr>
           </thead>
@@ -116,6 +140,18 @@ export default function AdminProductsPage() {
                     {stock}
                   </td>
                   <td className="px-3 py-2.5">
+                    <label className="flex cursor-pointer items-center gap-2 text-xs font-bold text-muted">
+                      <input
+                        type="checkbox"
+                        checked={stock === 0}
+                        disabled={savingId === p.id}
+                        onChange={(e) => handleSoldOutToggle(p, e.target.checked)}
+                        className="h-4 w-4 cursor-pointer accent-rose"
+                      />
+                      {stock === 0 ? "Sold out" : ""}
+                    </label>
+                  </td>
+                  <td className="px-3 py-2.5">
                     <Link href={`/admin/products/${p.id}/edit`} className="rounded-lg bg-surface-pink-light px-3.5 py-1.5 text-xs font-bold text-rose">
                       Edit
                     </Link>
@@ -127,6 +163,10 @@ export default function AdminProductsPage() {
         </table>
         {products.length === 0 && <p className="px-3 py-8 text-center text-sm text-muted-light">No products match these filters.</p>}
       </div>
+      <p className="mt-2 text-[11px] text-muted-light">
+        Ticking <strong>Sold Out</strong> sets the product&rsquo;s stock to 0 — it stays on the storefront, shown as out of
+        stock. To restock, untick it and enter the new quantity per variant on the edit page.
+      </p>
     </AdminShell>
   );
 }
