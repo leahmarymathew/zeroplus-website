@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { Search, Heart, ShoppingBag, User } from "lucide-react";
+import { Search, Heart, ShoppingBag, User, Menu, X } from "lucide-react";
 import { useCartStore, selectCartCount } from "@/store/cartStore";
 import { useWishlistStore, selectWishlistCount } from "@/store/wishlistStore";
 
@@ -45,6 +45,7 @@ export function Header({ variant = "full", rightSlot }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
   // Gated on `hydrated` so the SSR/first-client-render badge count (0, i.e.
   // hidden) matches until the persisted store loads.
   const cartCount = useCartStore((s) => (s.hydrated ? selectCartCount(s) : 0));
@@ -98,7 +99,16 @@ export function Header({ variant = "full", rightSlot }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-30 border-b border-border-pink-light bg-page shadow-[0_2px_12px_rgba(217,79,140,0.05)]">
-      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3 sm:px-8">
+      <div className="mx-auto flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3 sm:px-8 lg:px-12">
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Open menu"
+          className="flex h-9 w-9 flex-none items-center justify-center rounded-lg text-ink md:hidden"
+        >
+          <Menu size={22} strokeWidth={1.8} />
+        </button>
+
         <Link href="/" className="flex flex-none items-center gap-2">
           <Image src="/logo.png" alt="Zeroplus" width={1478} height={719} priority className="h-14 w-auto" />
         </Link>
@@ -129,7 +139,7 @@ export function Header({ variant = "full", rightSlot }: HeaderProps) {
         </div>
       </div>
 
-      <nav className="mx-auto flex max-w-[1200px] gap-2 overflow-x-auto px-4 pb-2.5 sm:px-8">
+      <nav className="mx-auto hidden gap-2 overflow-x-auto px-4 pb-2.5 sm:px-8 lg:px-12 md:flex">
         {NAV_LINKS.map((link) => {
           const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
           return (
@@ -137,6 +147,46 @@ export function Header({ variant = "full", rightSlot }: HeaderProps) {
               key={link.href}
               href={link.href}
               className={`flex-none rounded-full px-4 py-1.5 text-sm font-bold ${
+                active ? "bg-surface-pink-light text-rose" : "text-ink"
+              }`}
+            >
+              {link.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {menuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={() => setMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <nav
+        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-none flex-col gap-0.5 bg-page p-4 shadow-[0_0_24px_rgba(0,0,0,0.12)] transition-transform duration-200 md:hidden ${
+          menuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="mb-2 flex items-center justify-between border-b border-border-pink-light pb-4">
+          <Image src="/logo.png" alt="Zeroplus" width={1478} height={719} className="h-10 w-auto" />
+          <button
+            type="button"
+            onClick={() => setMenuOpen(false)}
+            aria-label="Close menu"
+            className="flex h-8 w-8 flex-none items-center justify-center rounded-lg text-muted-light"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        {NAV_LINKS.map((link) => {
+          const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={() => setMenuOpen(false)}
+              className={`rounded-[10px] px-3 py-2.5 text-sm font-bold ${
                 active ? "bg-surface-pink-light text-rose" : "text-ink"
               }`}
             >

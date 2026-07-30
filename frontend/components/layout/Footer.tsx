@@ -28,7 +28,7 @@ const SOCIAL_LINKS = [
 export function Footer() {
   return (
     <footer className="mt-auto border-t border-border-pink-light bg-input-fill">
-      <div className="mx-auto grid max-w-[1200px] grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-6 px-4 py-8 sm:px-8 sm:py-10">
+      <div className="mx-auto grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-6 px-4 py-8 sm:px-8 lg:px-12 sm:py-10">
         <div>
           <Image src="/logo.png" alt="Zeroplus" width={1478} height={719} className="mb-2.5 h-12 w-auto" />
           <p className="m-0 text-[13px] leading-relaxed text-muted">

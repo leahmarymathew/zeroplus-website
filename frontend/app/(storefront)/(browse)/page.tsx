@@ -33,7 +33,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <section className="mx-auto max-w-[1200px] px-4 pt-5 sm:px-8 sm:pt-10">
+      <section className="mx-auto px-4 pt-5 sm:px-8 lg:px-12 sm:pt-10">
         <div
           className="flex flex-wrap-reverse items-center gap-7 rounded-[28px] p-7 sm:p-14"
           style={{ backgroundImage: "linear-gradient(120deg, var(--color-surface-pink-light), var(--color-surface-pink))" }}
@@ -71,7 +71,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1200px] px-4 pt-8 sm:px-8 sm:pt-12">
+      <section className="mx-auto px-4 pt-8 sm:px-8 lg:px-12 sm:pt-12">
         <h2 className="mb-4.5 text-xl font-bold sm:text-2xl">Shop by Category</h2>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3.5">
           {categories.map((c) => (
@@ -92,7 +92,7 @@ export default async function HomePage() {
       <ProductRow title="Best Sellers" products={bestSellers} />
       <ProductRow title="New Arrivals" products={newArrivals} />
 
-      <section className="mx-auto max-w-[1200px] px-4 pt-8 sm:px-8 sm:pt-12">
+      <section className="mx-auto px-4 pt-8 sm:px-8 lg:px-12 sm:pt-12">
         <div className="mb-4.5 flex flex-wrap items-center justify-between gap-2.5">
           <div>
             <h2 className="text-xl font-bold sm:text-2xl">Curated Kits, Made Just for You</h2>
@@ -107,7 +107,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1200px] px-4 pt-8 sm:px-8 sm:pt-12">
+      <section className="mx-auto px-4 pt-8 sm:px-8 lg:px-12 sm:pt-12">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3.5">
           {TRUST_BADGES.map(({ label, Icon }) => (
             <div key={label} className="flex flex-col items-center gap-2 rounded-2xl bg-input-fill px-2.5 py-4 text-center">
@@ -120,7 +120,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1200px] px-4 pt-8 sm:px-8 sm:pt-12">
+      <section className="mx-auto px-4 pt-8 sm:px-8 lg:px-12 sm:pt-12">
         <h2 className="mb-4.5 text-xl font-bold sm:text-2xl">What Parents Say</h2>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
           {TESTIMONIALS.map((t) => (
@@ -137,7 +137,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1200px] px-4 py-8 sm:px-8 sm:py-14">
+      <section className="mx-auto px-4 py-8 sm:px-8 lg:px-12 sm:py-14">
         <div className="flex flex-wrap items-center justify-between gap-5 rounded-[24px] bg-ink p-6 text-white sm:p-9">
           <div className="min-w-[260px] flex-1 basis-[260px]">
             <h2 className="mb-1.5 text-lg font-bold sm:text-xl">Prefer to shop in person?</h2>
@@ -160,7 +160,7 @@ export default async function HomePage() {
 function ProductRow({ title, products }: { title: string; products: Product[] }) {
   if (!products || products.length === 0) return null;
   return (
-    <section className="mx-auto max-w-[1200px] px-4 pt-8 sm:px-8 sm:pt-12">
+    <section className="mx-auto px-4 pt-8 sm:px-8 lg:px-12 sm:pt-12">
       <div className="mb-4.5 flex items-baseline justify-between">
         <h2 className="text-xl font-bold sm:text-2xl">{title}</h2>
         <Link href="/shop" className="text-[13.5px] font-bold">

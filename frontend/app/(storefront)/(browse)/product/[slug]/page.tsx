@@ -58,7 +58,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   ];
 
   return (
-    <div className="mx-auto max-w-[1200px] px-4 pt-5 pb-14 sm:px-8 sm:pt-8">
+    <div className="mx-auto px-4 pt-5 pb-14 sm:px-8 lg:px-12 sm:pt-8">
       <div className="mb-4 text-[13px] text-muted-light">
         <Link href="/">Home</Link> / <Link href="/shop">Shop</Link> / <span className="text-ink">{product.name}</span>
       </div>
