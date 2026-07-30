@@ -19,7 +19,11 @@ const listQuery = z.object({
   maxPrice: z.coerce.number().int().min(0).optional(),
   sort: z.enum(["popular", "price_asc", "price_desc", "newest"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(50).default(20),
+  // Cap is 100, not 50: the storefront browse pages (Shop, Search, Best Deals,
+  // Category) have no pagination controls and ask for limit=60 to show the whole
+  // catalogue in one grid. At 50 every one of them 400s and renders zero
+  // products. Still bounded, so a huge catalogue can't be pulled in one request.
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
 // GET /v1/products — Section 6.2: ?q= is search, ?onSale=true is Best Deals
