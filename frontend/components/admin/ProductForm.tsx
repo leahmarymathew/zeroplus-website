@@ -201,7 +201,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
                 <label className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-[11.5px] font-bold text-muted">
                   <input
                     type="checkbox"
-                    checked={v.stockQty === "0"}
+                    checked={v.stockQty !== "" && Number(v.stockQty) === 0}
                     onChange={(e) => updateVariant(v.key, { stockQty: e.target.checked ? "0" : "" })}
                     className="h-3.5 w-3.5 cursor-pointer accent-rose"
                   />

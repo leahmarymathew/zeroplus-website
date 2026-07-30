@@ -146,6 +146,7 @@ export default function AdminProductsPage() {
                         checked={stock === 0}
                         disabled={savingId === p.id}
                         onChange={(e) => handleSoldOutToggle(p, e.target.checked)}
+                        aria-label={`Mark ${p.name} as sold out`}
                         className="h-4 w-4 cursor-pointer accent-rose"
                       />
                       {stock === 0 ? "Sold out" : ""}
