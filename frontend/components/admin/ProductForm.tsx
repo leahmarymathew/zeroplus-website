@@ -170,7 +170,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
           </div>
           <div className="flex flex-col gap-2">
             {variants.map((v) => (
-              <div key={v.key} className="grid grid-cols-[1fr_0.8fr_0.8fr_0.8fr_auto] items-center gap-2 rounded-[10px] bg-input-fill p-2">
+              <div key={v.key} className="grid grid-cols-[1fr_0.8fr_0.8fr_0.8fr_auto_auto] items-center gap-2 rounded-[10px] bg-input-fill p-2">
                 <input
                   placeholder="Size/Color"
                   value={v.label}
@@ -195,6 +195,18 @@ export function ProductForm({ product, categories }: { product?: Product; catego
                   onChange={(e) => updateVariant(v.key, { stockQty: e.target.value.replace(/\D/g, "") })}
                   className="rounded-lg border-[1.5px] border-border-pink px-2.5 py-2 text-[12.5px] outline-none"
                 />
+                {/* Sold out is not stored separately — it just means stock 0.
+                    Ticking zeroes this variant; unticking clears the box so the
+                    real restock count gets typed in rather than guessed. */}
+                <label className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-[11.5px] font-bold text-muted">
+                  <input
+                    type="checkbox"
+                    checked={v.stockQty !== "" && Number(v.stockQty) === 0}
+                    onChange={(e) => updateVariant(v.key, { stockQty: e.target.checked ? "0" : "" })}
+                    className="h-3.5 w-3.5 cursor-pointer accent-rose"
+                  />
+                  Sold out
+                </label>
                 <button type="button" onClick={() => removeVariant(v.key)} className="text-lg text-strikethrough">
                   ×
                 </button>

@@ -53,6 +53,11 @@ adminRouter.post("/products", validate(productSchema), async (req, res) => {
 adminRouter.patch("/products/:id", validate(productSchema), async (req, res) => {
   ok(res, await admin.updateProduct(String(req.params.id), req.body));
 });
+// Zeroes every variant's stock in one call — the "we ran out" tick in the admin
+// product list. Restocking goes through PATCH /products/:id with real numbers.
+adminRouter.patch("/products/:id/sold-out", async (req, res) => {
+  ok(res, await admin.setProductSoldOut(String(req.params.id)));
+});
 adminRouter.delete("/products/:id", async (req, res) => {
   ok(res, await admin.deleteProduct(String(req.params.id)));
 });
