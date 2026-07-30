@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Nunito } from "next/font/google";
 import { Toaster } from "react-hot-toast";
+import { GoogleAuthProvider } from "@/components/layout/GoogleAuthProvider";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -32,8 +33,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${fraunces.variable} ${nunito.variable} h-full`}>
       <body className="min-h-full flex flex-col antialiased">
-        {children}
-        <Toaster position="top-center" />
+        <GoogleAuthProvider>
+          {children}
+          <Toaster position="top-center" />
+        </GoogleAuthProvider>
       </body>
     </html>
   );

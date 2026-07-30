@@ -46,6 +46,9 @@ const registerSchema = z.object({
   email: z.union([z.string().email(), z.literal("")]).optional().nullable(),
   phone: phoneSchema,
   password: z.string().min(8).max(100),
+  // Every signup path requires a phone verified via /otp/send (purpose=register).
+  otpId: z.string().min(1),
+  code: z.string().regex(/^[0-9]{6}$/),
 });
 
 authRouter.post("/register", authLimiter, validate(registerSchema), async (req, res) => {
@@ -70,11 +73,28 @@ authRouter.post("/login", authLimiter, validate(loginSchema), async (req, res) =
 
 const googleSchema = z.object({ idToken: z.string().min(1) });
 
+// Existing accounts only — throws GOOGLE_NEEDS_PHONE for a brand new identity
+// (see auth.service.ts). The frontend then collects + verifies a phone and
+// calls /auth/google/register to actually create the account.
 authRouter.post("/google", authLimiter, validate(googleSchema), async (req, res) => {
   const { accessToken, refreshToken, user } = await auth.loginWithGoogle(req.body.idToken);
   await mergeGuestCart(req.cookies?.[GUEST_COOKIE], user.id);
   setRefreshCookie(res, refreshToken);
   ok(res, { accessToken, user });
+});
+
+const googleRegisterSchema = z.object({
+  idToken: z.string().min(1),
+  phone: phoneSchema,
+  otpId: z.string().min(1),
+  code: z.string().regex(/^[0-9]{6}$/),
+});
+
+authRouter.post("/google/register", authLimiter, validate(googleRegisterSchema), async (req, res) => {
+  const { accessToken, refreshToken, user, created } = await auth.registerWithGoogle(req.body);
+  await mergeGuestCart(req.cookies?.[GUEST_COOKIE], user.id);
+  setRefreshCookie(res, refreshToken);
+  ok(res, { accessToken, user }, undefined, created ? 201 : 200);
 });
 
 // POST /v1/auth/refresh — auth via the httpOnly cookie, not a Bearer header

@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "../src/lib/prisma.js";
+import type { OtpPurpose } from "../src/generated/prisma/enums.js";
 
 // Wipe every table between tests for a deterministic starting state.
 export async function resetDb() {
@@ -51,6 +52,17 @@ export async function seedUser(email = "u@example.com", password = "password123"
       role,
     },
   });
+}
+
+// A real, verifiable OTP row: unlike the checkout fixtures elsewhere (which
+// set codeHash: "x" since assertCheckoutOtp only checks the `verified` flag),
+// register/registerWithGoogle call the real verifyOtp — a bcrypt.compare
+// against the plaintext code — so the hash has to actually match.
+export async function seedOtp(phone: string, purpose: OtpPurpose, code = "123456") {
+  const otp = await prisma.otpRequest.create({
+    data: { phone, codeHash: await bcrypt.hash(code, 10), purpose, expiresAt: new Date(Date.now() + 5 * 60_000) },
+  });
+  return { otpId: otp.id, code };
 }
 
 export const address = {

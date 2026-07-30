@@ -44,21 +44,41 @@ export interface RegisterInput {
   phone: string;
   email?: string | null;
   password: string;
+  // Every signup path requires a phone verified via sendOtp(phone, "register")
+  // first — phone numbers are leads for the shop, not just a login field.
+  otpId: string;
+  code: string;
 }
 
-// POST /v1/auth/register — email is optional.
+// POST /v1/auth/register — email is optional, phone verification is not.
 export async function register(input: RegisterInput): Promise<ApiResult<AuthSession>> {
   if (!USE_MOCKS) return unwrap<AuthSession>(api.post("/auth/register", input));
   await delay(200);
   return mockSession(mockUser({ name: input.name, phone: input.phone, email: input.email || null }));
 }
 
-// POST /v1/auth/google — placeholder until a real OAuth client id exists; the
-// backend returns 503 SERVICE_UNAVAILABLE when Google sign-in isn't configured.
+// POST /v1/auth/google — existing accounts only. A brand new Google identity
+// gets a GOOGLE_NEEDS_PHONE error instead of a session; the caller should catch
+// that code and fall into registerWithGoogle below.
 export async function loginWithGoogle(idToken: string): Promise<ApiResult<AuthSession>> {
   if (!USE_MOCKS) return unwrap<AuthSession>(api.post("/auth/google", { idToken }));
   await delay(200);
   return mockSession(mockUser({ email: "google@example.com" }));
+}
+
+export interface RegisterWithGoogleInput {
+  idToken: string;
+  phone: string;
+  otpId: string;
+  code: string;
+}
+
+// POST /v1/auth/google/register — completes a Google signup once the phone
+// has been sent+verified via sendOtp(phone, "register") / the OTP entry step.
+export async function registerWithGoogle(input: RegisterWithGoogleInput): Promise<ApiResult<AuthSession>> {
+  if (!USE_MOCKS) return unwrap<AuthSession>(api.post("/auth/google/register", input));
+  await delay(200);
+  return mockSession(mockUser({ email: "google@example.com", phone: input.phone }));
 }
 
 // POST /v1/auth/refresh — reads the httpOnly refresh cookie; no body.
