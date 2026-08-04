@@ -99,6 +99,16 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
         </div>
       )}
 
+      {product.ageTags && product.ageTags.length > 0 && (
+        <div className="mb-3.5 flex flex-wrap gap-2">
+          {product.ageTags.map((tag) => (
+            <Badge key={tag} variant="info">
+              {tag}
+            </Badge>
+          ))}
+        </div>
+      )}
+
       {product.safetyInfo && (
         <div className="mb-4 rounded-2xl bg-success-bg p-4">
           <div className="mb-0.5 text-[13.5px] font-bold text-success-text-dark">Safety information</div>

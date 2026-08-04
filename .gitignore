@@ -34,3 +34,7 @@ backend/src/generated/
 
 # Build output
 backend/dist/
+
+.handoff
+
+.gitignore

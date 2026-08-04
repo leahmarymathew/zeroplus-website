@@ -43,6 +43,9 @@ export interface Product {
   brand: string | null;
   safetyInfo: string | null;
   certifications: string[] | null;
+  // Age/stage tags (e.g. "Newborn (0-2 weeks)", "1-3 Months") — see
+  // docs/category-tag-plan.md. A product can carry several at once.
+  ageTags: string[] | null;
   ownerHighlight: string | null;
   isActive: boolean;
   // Optional single demo/unboxing clip — not every product has one.

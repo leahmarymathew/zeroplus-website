@@ -34,6 +34,7 @@ export interface ProductInput {
   brand?: string | null;
   safetyInfo?: string | null;
   certifications?: string[];
+  ageTags?: string[];
   ownerHighlight?: string | null;
   isActive?: boolean;
   videoUrl?: string | null;
@@ -88,6 +89,7 @@ export async function createProduct(input: ProductInput) {
       brand: input.brand ?? null,
       safetyInfo: input.safetyInfo ?? null,
       certifications: input.certifications ?? [],
+      ageTags: input.ageTags ?? [],
       ownerHighlight: input.ownerHighlight ?? null,
       isActive: input.isActive ?? true,
       videoUrl: input.videoUrl ?? null,
@@ -118,6 +120,7 @@ export async function updateProduct(id: string, input: ProductInput) {
         brand: input.brand ?? null,
         safetyInfo: input.safetyInfo ?? null,
         certifications: input.certifications ?? [],
+        ageTags: input.ageTags ?? [],
         ownerHighlight: input.ownerHighlight ?? null,
         isActive: input.isActive ?? true,
         videoUrl: input.videoUrl ?? null,

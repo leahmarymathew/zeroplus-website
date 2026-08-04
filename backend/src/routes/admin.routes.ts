@@ -5,6 +5,7 @@ import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { ok, paginate } from "../lib/respond.js";
 import * as admin from "../services/admin.service.js";
 import * as kits from "../services/kit.service.js";
+import { AGE_TAGS } from "../lib/ageTags.js";
 
 export const adminRouter = Router();
 
@@ -27,6 +28,7 @@ const productSchema = z.object({
   brand: z.string().nullable().optional(),
   safetyInfo: z.string().nullable().optional(),
   certifications: z.array(z.string()).optional(),
+  ageTags: z.array(z.enum(AGE_TAGS)).optional(),
   ownerHighlight: z.string().max(60).nullable().optional(),
   isActive: z.boolean().optional(),
   videoUrl: z.string().url().nullable().optional(),
