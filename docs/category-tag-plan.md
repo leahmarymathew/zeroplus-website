@@ -40,14 +40,14 @@ clothing get real use out of the full ladder; skincare mostly doesn't need
 finer than "Newborn" vs. "Older."
 
 1. Premature (Mom N Cute runs this as its own category, not just a tag)
-2. Newborn (0–2 weeks)
-3. 2–4 weeks
-4. 1–3 Months
-5. 3–6 Months
-6. 6–9 Months
-7. 9–12 Months
-8. 12–18 Months
-9. 18–24 Months
+2. Newborn (0-2 weeks)
+3. 2-4 weeks
+4. 1-3 Months
+5. 3-6 Months
+6. 6-9 Months
+7. 9-12 Months
+8. 12-18 Months
+9. 18-24 Months
 
 Rungs 1, 2, 4 and 5 are the exact literal tags Pretty Plums uses ("New born",
 "1-3M", "3-6M"); rung 3 is the owner's own finer-grained addition, useful for

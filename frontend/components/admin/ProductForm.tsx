@@ -264,6 +264,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
                 <button
                   key={tag}
                   type="button"
+                  aria-pressed={on}
                   onClick={() => toggleAgeTag(tag)}
                   className={`rounded-full border-[1.5px] px-3.5 py-1.5 text-xs font-bold ${
                     on ? "border-rose bg-surface-pink-light text-rose" : "border-admin-border bg-input-fill text-muted"

@@ -148,6 +148,7 @@ function ShopPageContent() {
                   <button
                     key={label}
                     type="button"
+                    aria-pressed={on}
                     onClick={() => toggleSet(selectedAges, label, setSelectedAges)}
                     className={`rounded-full border-[1.5px] px-3.5 py-1.5 text-xs font-bold ${
                       on ? "border-rose bg-rose text-white" : "border-border-secondary bg-white text-rose"
