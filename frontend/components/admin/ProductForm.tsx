@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { createProduct, updateProduct } from "@/lib/api/admin/products";
 import { ImageUploader } from "@/components/admin/ImageUploader";
 import { VideoUploader } from "@/components/admin/VideoUploader";
+import { AGE_TAGS } from "@/lib/ageTags";
 import type { Category, Product } from "@/lib/types";
 
 const CERT_OPTIONS = ["Dermatologically Tested", "Hypoallergenic", "BPA Free", "Cruelty Free", "Fragrance Free"];
@@ -38,6 +39,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
   const [safetyInfo, setSafetyInfo] = useState(product?.safetyInfo ?? "");
   const [ownerHighlight, setOwnerHighlight] = useState(product?.ownerHighlight ?? "");
   const [certifications, setCertifications] = useState<Set<string>>(new Set(product?.certifications ?? []));
+  const [ageTags, setAgeTags] = useState<Set<string>>(new Set(product?.ageTags ?? []));
   const [variants, setVariants] = useState<VariantRow[]>(variantRowsFrom(product));
   const [images, setImages] = useState<string[]>(
     [...(product?.images ?? [])].sort((a, b) => a.sortOrder - b.sortOrder).map((img) => img.url)
@@ -50,6 +52,15 @@ export function ProductForm({ product, categories }: { product?: Product; catego
       const next = new Set(prev);
       if (next.has(cert)) next.delete(cert);
       else next.add(cert);
+      return next;
+    });
+  }
+
+  function toggleAgeTag(tag: string) {
+    setAgeTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(tag)) next.delete(tag);
+      else next.add(tag);
       return next;
     });
   }
@@ -82,6 +93,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
       brand: brand.trim() || null,
       safetyInfo: safetyInfo.trim() || null,
       certifications: Array.from(certifications),
+      ageTags: Array.from(ageTags),
       ownerHighlight: ownerHighlight.trim() || null,
       isActive: product?.isActive ?? true,
       videoUrl,
@@ -240,6 +252,32 @@ export function ProductForm({ product, categories }: { product?: Product; catego
           </div>
           <p className="mt-1.5 text-[11px] text-muted-light">
             Select any that apply — shown as small badges on the product page. Different from the highlight badge below.
+          </p>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-[12.5px] font-bold">Age / Stage Tags</label>
+          <div className="flex flex-wrap gap-2">
+            {AGE_TAGS.map((tag) => {
+              const on = ageTags.has(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => toggleAgeTag(tag)}
+                  className={`rounded-full border-[1.5px] px-3.5 py-1.5 text-xs font-bold ${
+                    on ? "border-rose bg-surface-pink-light text-rose" : "border-admin-border bg-input-fill text-muted"
+                  }`}
+                >
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1.5 text-[11px] text-muted-light">
+            Select every stage this product suits — a newborn diaper pack might span several. Used for the age filter on
+            the storefront.
           </p>
         </div>
       </div>
