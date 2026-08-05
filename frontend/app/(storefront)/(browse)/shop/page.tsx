@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ProductCardInteractive } from "@/components/storefront/ProductCardInteractive";
 import { getCategories } from "@/lib/api/categories";
 import { getProducts, type ProductSort } from "@/lib/api/products";
+import { AGE_TAGS } from "@/lib/ageTags";
 import type { Category, Product } from "@/lib/types";
 
 const PRICE_BUCKETS = [
@@ -15,11 +16,6 @@ const PRICE_BUCKETS = [
   { label: "Above ₹1000", min: 1000, max: Infinity },
 ];
 
-// Shop-by-age is part of the Design System's filter panel, but Section 5's
-// data model has no age field on Product/ProductVariant — kept as a visible
-// filter (matches the design) without functional filtering until the data
-// model grows one.
-const AGE_LABELS = ["0-3m", "3-6m", "6-12m", "1-2y", "2y+"];
 
 const SORT_OPTIONS: { value: ProductSort; label: string }[] = [
   { value: "popular", label: "Sort: Popular" },
@@ -70,6 +66,15 @@ function ShopPageContent() {
       maxPrice: Math.max(...buckets.map((b) => b.max)),
     };
   }, [selectedPriceBuckets]);
+
+  // Applied client-side rather than as a fetch param — catalog is small
+  // (same reasoning as the price/category logic above), and a product with
+  // no ageTags set (most skincare, per the tag plan) is left visible under
+  // any age filter rather than hidden.
+  const visibleProducts = useMemo(() => {
+    if (selectedAges.size === 0) return products;
+    return products.filter((p) => (p.ageTags ?? []).length === 0 || p.ageTags!.some((t) => selectedAges.has(t)));
+  }, [products, selectedAges]);
 
   useEffect(() => {
     if (categories.length === 0) return;
@@ -137,12 +142,13 @@ function ShopPageContent() {
           <div>
             <div className="mb-2.5 text-sm font-bold">Shop by Age</div>
             <div className="flex flex-wrap gap-2">
-              {AGE_LABELS.map((label) => {
+              {AGE_TAGS.map((label) => {
                 const on = selectedAges.has(label);
                 return (
                   <button
                     key={label}
                     type="button"
+                    aria-pressed={on}
                     onClick={() => toggleSet(selectedAges, label, setSelectedAges)}
                     className={`rounded-full border-[1.5px] px-3.5 py-1.5 text-xs font-bold ${
                       on ? "border-rose bg-rose text-white" : "border-border-secondary bg-white text-rose"
@@ -188,7 +194,7 @@ function ShopPageContent() {
             >
               Filters
             </button>
-            <span className="text-[13.5px] text-muted-light">{loading ? "Loading…" : `${products.length} products`}</span>
+            <span className="text-[13.5px] text-muted-light">{loading ? "Loading…" : `${visibleProducts.length} products`}</span>
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as ProductSort)}
@@ -202,12 +208,12 @@ function ShopPageContent() {
             </select>
           </div>
 
-          {!loading && products.length === 0 && (
+          {!loading && visibleProducts.length === 0 && (
             <p className="py-10 text-center text-muted">No products match these filters.</p>
           )}
 
           <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
-            {products.map((p) => (
+            {visibleProducts.map((p) => (
               <ProductCardInteractive key={p.id} product={p} />
             ))}
           </div>
