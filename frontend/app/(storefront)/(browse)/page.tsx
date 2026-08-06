@@ -98,9 +98,18 @@ export default async function HomePage() {
               href={`/shop?category=${c.slug}`}
               className="flex flex-col items-center gap-2 text-ink"
             >
-              <div className="flex aspect-square w-full items-center justify-center rounded-[18px] bg-surface-pink-light text-[10px] font-semibold text-black/30">
-                photo
-              </div>
+              {c.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={c.imageUrl}
+                  alt={c.name}
+                  className="aspect-square w-full rounded-[18px] object-cover"
+                />
+              ) : (
+                <div className="flex aspect-square w-full items-center justify-center rounded-[18px] bg-surface-pink-light text-[10px] font-semibold text-black/30">
+                  photo
+                </div>
+              )}
               <span className="text-center text-[13.5px] font-bold">{c.name}</span>
             </Link>
           ))}
