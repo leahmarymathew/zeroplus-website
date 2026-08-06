@@ -9,7 +9,7 @@ services:
     rootDir: backend
     plan: free
     branch: main
-    buildCommand: npm ci && npx prisma generate && npm run build
+    buildCommand: npm install --no-package-lock && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && npm start
     healthCheckPath: /v1/health
     envVars:
