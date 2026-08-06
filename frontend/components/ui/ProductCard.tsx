@@ -24,7 +24,7 @@ interface ProductCardProps {
 function ProductImage({ imageUrl }: { imageUrl?: string | null }) {
   if (imageUrl) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={imageUrl} alt="" className="h-full w-full rounded-xl object-cover" />;
+    return <img src={imageUrl} alt="" className="h-full w-full rounded-xl object-contain" />;
   }
   return (
     <div
