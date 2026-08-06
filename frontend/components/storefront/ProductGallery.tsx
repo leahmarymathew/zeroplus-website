@@ -28,7 +28,7 @@ export function ProductGallery({
         <div className="flex h-[360px] items-center justify-center overflow-hidden rounded-[20px] bg-surface-pink-light">
           {current ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={current.url} alt={name} className="h-full w-full object-cover" />
+            <img src={current.url} alt={name} className="h-full w-full object-contain" />
           ) : (
             <span
               className="flex h-full w-full items-center justify-center text-[11px] font-semibold uppercase text-black/30"
