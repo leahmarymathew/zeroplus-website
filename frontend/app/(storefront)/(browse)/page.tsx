@@ -130,7 +130,7 @@ export default async function HomePage() {
           </Link>
         </div>
         <div className="rounded-[20px] border border-border-pink-light bg-white p-6 text-center text-sm text-muted">
-          Curated kits are coming soon — this section links to <code>/kits</code>, built in a later milestone.
+          Curated kits are coming soon — check back shortly!
         </div>
       </section>
 
