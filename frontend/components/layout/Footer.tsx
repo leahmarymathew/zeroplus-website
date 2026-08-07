@@ -39,13 +39,16 @@ export function Footer() {
               </span>
             ))}
           </p>
-          <iframe
-            title="Zeroplus store location"
-            src={googleMapsEmbedSrc()}
-            className="mt-2 h-[70px] w-[120px] rounded-[10px] border-0"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-          />
+          <div className="mt-2 h-[70px] w-[120px] overflow-hidden rounded-[10px]">
+            {/* Rendered larger and scaled down so Google's embed UI (e.g. the "Maps" pill) shrinks with it — that overlay is fixed-size and can't be restyled directly since it's cross-origin iframe content. */}
+            <iframe
+              title="Zeroplus store location"
+              src={googleMapsEmbedSrc()}
+              className="h-[105px] w-[180px] origin-top-left scale-[0.667] border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
         </div>
 
         <div>
