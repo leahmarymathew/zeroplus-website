@@ -119,6 +119,24 @@ export async function getCategoryBySlug(slug: string) {
   return category;
 }
 
+// Homepage "What Parents Say" — genuine positive reviews only (rating >= 4,
+// non-empty comment), newest first. No manual curation: a review qualifies
+// the moment a customer leaves it, same principle as Best Deals (5.md 15.3).
+export async function listFeaturedReviews(limit: number) {
+  const rows = await prisma.review.findMany({
+    where: { rating: { gte: 4 }, comment: { not: null } },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: {
+      user: { select: { name: true } }, // name only — never leak email/phone
+      product: { select: { name: true, slug: true } },
+    },
+  });
+  return rows
+    .filter((r) => r.comment && r.comment.trim().length > 0)
+    .map(({ user, product, ...r }) => ({ ...r, userName: user.name, productName: product.name, productSlug: product.slug }));
+}
+
 export async function listReviews(productId: string, page: number, limit: number) {
   const where = { productId };
   const [total, rows] = await Promise.all([

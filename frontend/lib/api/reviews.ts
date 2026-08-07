@@ -1,5 +1,6 @@
-import type { ApiResult, Review } from "@/lib/types";
+import type { ApiResult, FeaturedReview, Review } from "@/lib/types";
 import { MOCK_REVIEWS } from "@/lib/mock/reviews";
+import { MOCK_PRODUCTS } from "@/lib/mock/products";
 import { delay } from "./delay";
 import { api, unwrap, USE_MOCKS } from "./client";
 
@@ -11,6 +12,22 @@ export async function getReviews(productId: string): Promise<ApiResult<Array<Rev
   if (!USE_MOCKS) return unwrap<Array<Review & { userName: string }>>(api.get(`/products/${productId}/reviews`));
   await delay(150);
   return { success: true, data: reviews.filter((r) => r.productId === productId) };
+}
+
+// GET /v1/reviews/featured — homepage "What Parents Say". Real, positive
+// customer reviews only (rating >= 4, has a comment) — never hardcoded copy.
+export async function getFeaturedReviews(limit = 6): Promise<ApiResult<FeaturedReview[]>> {
+  if (!USE_MOCKS) return unwrap<FeaturedReview[]>(api.get("/reviews/featured", { params: { limit } }));
+  await delay(150);
+  const data = reviews
+    .filter((r) => r.rating >= 4 && r.comment && r.comment.trim().length > 0)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, limit)
+    .map((r) => {
+      const product = MOCK_PRODUCTS.find((p) => p.id === r.productId);
+      return { ...r, productName: product?.name ?? "", productSlug: product?.slug ?? "" };
+    });
+  return { success: true, data };
 }
 
 // POST /v1/products/:id/reviews — Section 6.2. Real backend restricts this

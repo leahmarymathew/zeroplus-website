@@ -174,6 +174,13 @@ export interface Review {
   createdAt: string;
 }
 
+// Homepage "What Parents Say" — a genuine review (rating >= 4, has a
+// comment) plus the product it was left on, for attribution/linking.
+export interface FeaturedReview extends Review {
+  productName: string;
+  productSlug: string;
+}
+
 export interface Wishlist {
   id: string;
   userId: string;
