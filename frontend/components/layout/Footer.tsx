@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { STORE, whatsappLink } from "@/lib/constants";
+import { STORE, whatsappLink, googleMapsEmbedSrc } from "@/lib/constants";
 import { WhatsAppIcon } from "@/components/ui/WhatsAppIcon";
 import { FacebookIcon } from "@/components/ui/FacebookIcon";
 import { InstagramIcon } from "@/components/ui/InstagramIcon";
@@ -39,14 +39,13 @@ export function Footer() {
               </span>
             ))}
           </p>
-          <div
-            className="mt-2 flex h-[70px] w-[120px] items-center justify-center rounded-[10px] text-[9px] font-semibold uppercase text-black/30"
-            style={{
-              backgroundImage: "repeating-linear-gradient(45deg, rgba(0,0,0,.04) 0 6px, transparent 6px 12px)",
-            }}
-          >
-            map
-          </div>
+          <iframe
+            title="Zeroplus store location"
+            src={googleMapsEmbedSrc()}
+            className="mt-2 h-[70px] w-[120px] rounded-[10px] border-0"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
         </div>
 
         <div>

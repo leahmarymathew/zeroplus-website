@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { WhatsAppIcon } from "@/components/ui/WhatsAppIcon";
-import { STORE, whatsappLink } from "@/lib/constants";
+import { STORE, whatsappLink, googleMapsEmbedSrc, googleMapsDirectionsUrl } from "@/lib/constants";
 
 const CONTACT_DETAILS = [
   { Icon: MapPin, label: "Store Address", value: STORE.addressLines.join(", ") },
@@ -52,12 +52,21 @@ export default function ContactPage() {
 
         <div className="flex flex-wrap gap-8">
           <div className="min-w-[280px] flex-1 basis-[320px]">
-            <div
-              className="mb-5 flex h-[220px] items-center justify-center rounded-[18px] text-[11px] font-semibold text-black/30"
-              style={{ backgroundImage: "repeating-linear-gradient(45deg, rgba(0,0,0,.045) 0 8px, transparent 8px 16px)" }}
+            <iframe
+              title="Zeroplus store location"
+              src={googleMapsEmbedSrc()}
+              className="mb-2 h-[220px] w-full rounded-[18px] border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+            <a
+              href={googleMapsDirectionsUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mb-5 inline-block text-[13px] font-bold text-rose"
             >
-              store map
-            </div>
+              Get directions →
+            </a>
             <div className="flex flex-col gap-4.5">
               {CONTACT_DETAILS.map(({ Icon, label, value, href }) => (
                 <div key={label} className="flex items-start gap-3">

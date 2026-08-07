@@ -5,6 +5,7 @@ import { getCategories } from "@/lib/api/categories";
 import { getProducts } from "@/lib/api/products";
 import { getBanners } from "@/lib/api/banners";
 import { getFeaturedReviews } from "@/lib/api/reviews";
+import { googleMapsDirectionsUrl } from "@/lib/constants";
 import type { Product } from "@/lib/types";
 import { Truck, RotateCcw, ShieldCheck, Banknote, Star } from "lucide-react";
 
@@ -196,12 +197,14 @@ export default async function HomePage() {
               Visit us at our Kothamangalam store — see products up close, get expert advice from our team.
             </p>
           </div>
-          <Link
-            href="/contact"
+          <a
+            href={googleMapsDirectionsUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex-none rounded-full bg-rose px-6 py-3 text-sm font-bold text-white shadow-[0_8px_20px_rgba(217,79,140,0.25)]"
           >
             Get Directions
-          </Link>
+          </a>
         </div>
       </section>
     </>
