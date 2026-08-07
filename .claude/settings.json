@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs -r taskkill //F //PID)"
+    ]
+  }
+}
