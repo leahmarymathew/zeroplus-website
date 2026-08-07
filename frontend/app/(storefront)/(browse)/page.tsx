@@ -38,54 +38,10 @@ export default async function HomePage() {
     <>
       <section className="mx-auto px-4 pt-5 sm:px-8 lg:px-12 sm:pt-10">
         <div
-          className="relative flex min-h-[420px] items-center overflow-hidden rounded-[28px] p-7 sm:min-h-[480px] sm:p-14 lg:min-h-[560px]"
+          className="flex flex-wrap-reverse items-center gap-7 rounded-[28px] p-7 sm:p-14"
           style={{ backgroundImage: "linear-gradient(120deg, var(--color-surface-pink-light), var(--color-surface-pink))" }}
         >
-          {/* Full-bleed media layer — sits behind the text/scrim */}
-          {heroBanner?.videoUrl ? (
-            /* eslint-disable-next-line jsx-a11y/media-has-caption */
-            <video
-              src={heroBanner.videoUrl}
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="absolute inset-0 h-full w-full object-cover object-[center_40%]"
-            />
-          ) : heroBanner?.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={heroBanner.imageUrl}
-              alt={heroBanner.title}
-              className="absolute inset-0 h-full w-full object-cover object-[center_40%]"
-            />
-          ) : (
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(45deg, rgba(233,30,140,.06) 0 10px, rgba(122,79,201,.06) 10px 20px)",
-              }}
-            />
-          )}
-
-          {/* Scrim — fades the photo out under the text so copy stays legible
-              on any image, without hiding the rest of the shot. Fixed px
-              stops (not %) so the protected text zone is a constant width —
-              on narrow/mobile boxes it covers the whole card (text-safe,
-              photo barely peeks through); on wide desktop boxes most of the
-              photo stays uncovered. A %-based gradient would stretch this
-              zone with the box and either swallow the photo on wide screens
-              or leave text unprotected on narrow ones. */}
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage:
-                "linear-gradient(100deg, var(--color-surface-pink-light) 0px, var(--color-surface-pink-light) 560px, rgba(252,244,247,0.7) 680px, transparent 800px)",
-            }}
-          />
-
-          <div className="relative max-w-[460px]">
+          <div className="min-w-[260px] flex-1 basis-[280px]">
             <span className="mb-3.5 inline-block rounded-full bg-white px-3.5 py-[5px] text-xs font-bold text-rose">
               Kothamangalam&rsquo;s trusted baby store
             </span>
@@ -104,6 +60,29 @@ export default async function HomePage() {
               </LinkButton>
             </div>
           </div>
+          {heroBanner?.videoUrl ? (
+            <div className="h-[220px] min-w-[220px] max-w-[420px] flex-1 basis-[260px] overflow-hidden rounded-[20px] bg-black sm:h-[280px] lg:h-[320px]">
+              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+              <video src={heroBanner.videoUrl} autoPlay muted loop playsInline className="h-full w-full object-cover object-top" />
+            </div>
+          ) : heroBanner?.imageUrl ? (
+            <div className="h-[220px] min-w-[220px] max-w-[420px] flex-1 basis-[260px] overflow-hidden rounded-[20px] sm:h-[280px] lg:h-[320px]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={heroBanner.imageUrl} alt={heroBanner.title} className="h-full w-full object-cover object-top" />
+            </div>
+          ) : (
+            <div
+              className="flex h-[220px] min-w-[220px] max-w-[420px] flex-1 basis-[260px] items-center justify-center rounded-[20px] text-center text-xs font-semibold text-muted-light sm:h-[280px] lg:h-[320px]"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(45deg, rgba(233,30,140,.06) 0 10px, rgba(122,79,201,.06) 10px 20px)",
+              }}
+            >
+              hero photo —
+              <br />
+              parent &amp; baby
+            </div>
+          )}
         </div>
       </section>
 
