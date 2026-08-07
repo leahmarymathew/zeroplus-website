@@ -63,12 +63,12 @@ export default async function HomePage() {
           {heroBanner?.videoUrl ? (
             <div className="h-[220px] min-w-[220px] max-w-[420px] flex-1 basis-[260px] overflow-hidden rounded-[20px] bg-black sm:h-[280px] lg:h-[320px]">
               {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-              <video src={heroBanner.videoUrl} autoPlay muted loop playsInline className="h-full w-full object-cover object-top" />
+              <video src={heroBanner.videoUrl} autoPlay muted loop playsInline className="h-full w-full object-cover object-[center_55%]" />
             </div>
           ) : heroBanner?.imageUrl ? (
             <div className="h-[220px] min-w-[220px] max-w-[420px] flex-1 basis-[260px] overflow-hidden rounded-[20px] sm:h-[280px] lg:h-[320px]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={heroBanner.imageUrl} alt={heroBanner.title} className="h-full w-full object-cover object-top" />
+              <img src={heroBanner.imageUrl} alt={heroBanner.title} className="h-full w-full object-cover object-[center_55%]" />
             </div>
           ) : (
             <div
