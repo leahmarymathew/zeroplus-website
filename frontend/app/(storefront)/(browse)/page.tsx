@@ -24,8 +24,8 @@ const TESTIMONIALS = [
 export default async function HomePage() {
   const [categoriesRes, bestSellersRes, newArrivalsRes, bannersRes] = await Promise.all([
     getCategories(),
-    getProducts({ sort: "popular", limit: 4 }),
-    getProducts({ sort: "newest", limit: 4 }),
+    getProducts({ sort: "popular", limit: 8 }),
+    getProducts({ sort: "newest", limit: 8 }),
     getBanners(),
   ]);
 
