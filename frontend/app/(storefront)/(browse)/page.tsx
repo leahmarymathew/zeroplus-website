@@ -64,18 +64,18 @@ export default async function HomePage() {
             </div>
           </div>
           {heroBanner?.videoUrl ? (
-            <div className="h-[220px] min-w-[220px] flex-1 basis-[260px] overflow-hidden rounded-[20px] bg-black">
+            <div className="h-[220px] min-w-[220px] max-w-[420px] flex-1 basis-[260px] overflow-hidden rounded-[20px] bg-black sm:h-[280px] lg:h-[320px]">
               {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-              <video src={heroBanner.videoUrl} autoPlay muted loop playsInline className="h-full w-full object-cover" />
+              <video src={heroBanner.videoUrl} autoPlay muted loop playsInline className="h-full w-full object-cover object-top" />
             </div>
           ) : heroBanner?.imageUrl ? (
-            <div className="h-[220px] min-w-[220px] flex-1 basis-[260px] overflow-hidden rounded-[20px]">
+            <div className="h-[220px] min-w-[220px] max-w-[420px] flex-1 basis-[260px] overflow-hidden rounded-[20px] sm:h-[280px] lg:h-[320px]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={heroBanner.imageUrl} alt={heroBanner.title} className="h-full w-full object-cover" />
+              <img src={heroBanner.imageUrl} alt={heroBanner.title} className="h-full w-full object-cover object-top" />
             </div>
           ) : (
             <div
-              className="flex h-[220px] min-w-[220px] flex-1 basis-[260px] items-center justify-center rounded-[20px] text-center text-xs font-semibold text-muted-light"
+              className="flex h-[220px] min-w-[220px] max-w-[420px] flex-1 basis-[260px] items-center justify-center rounded-[20px] text-center text-xs font-semibold text-muted-light sm:h-[280px] lg:h-[320px]"
               style={{
                 backgroundImage:
                   "repeating-linear-gradient(45deg, rgba(233,30,140,.06) 0 10px, rgba(122,79,201,.06) 10px 20px)",

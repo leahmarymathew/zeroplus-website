@@ -1,6 +1,10 @@
 export const STORE = {
   name: "Zeroplus",
-  addressLines: ["Main Road, Kothamangalam,", "Ernakulam, Kerala 686691"],
+  addressLines: [
+    "Post Office Junction, near OP Gate Baselious Hospital",
+    "near Dharmagiri Hospital, Kothamangalam",
+    "Kerala 686691",
+  ],
   phoneDisplay: "+91 98xxx xxxx0",
   email: "hello@zeroplus.in",
   whatsappNumber: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "919800000000",
